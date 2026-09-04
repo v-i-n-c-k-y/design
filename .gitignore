@@ -1,0 +1,9 @@
+# Rendus produits par les scripts, regenerables en une commande
+ressources/cooperation_riso_*.png
+ressources/cooperation_boat.png
+ressources/cooperation_fleet.png
+*_output.png
+
+__pycache__/
+*.pyc
+.DS_Store
