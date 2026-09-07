@@ -2,11 +2,12 @@
 
 Trois effets de pixelisation, du plus simple au plus construit.
 
-| Dossier | Script | Effet |
-|---------|--------|-------|
+| Dossier | Fichier | Effet |
+|---------|---------|-------|
 | `riso/` | `riso.py` | Trame halftone en une encre |
 | `boats/` | `boat.py` | Pavage regulier en tuiles "bateau", duotone risograph |
 | `boats/` | `fleet.py` | Pavage par croissance, couleurs de la photo |
+| `cloth/` | `index.html` | Couverture de survie en mylar, WebGL interactif |
 
 `ressources/` porte l'image de test et le SVG dont sont tirees les encres du
 degrade. Les rendus produits par les scripts ne sont pas versionnes.
@@ -240,3 +241,42 @@ python -m boats.fleet photo.jpg -s 22 -a 75 -g 1
 # Grosses tuiles detachees sur fond sombre
 python -m boats.fleet photo.jpg -s 40 -g 3 -b "#1b1b2a"
 ```
+
+---
+
+# Cloth
+
+Une couverture de survie en mylar, rendue en WebGL. La feuille se souleve sous
+le curseur et claque au clic, comme le fait le film aluminise quand on le
+touche. Pas de dependance a installer : ouvrez `cloth/index.html` dans un
+navigateur, three.js vient du CDN.
+
+## Principe
+
+Le film est un plan de 200 x 200 segments dont la hauteur est calculee dans le
+vertex shader, greffe sur un `MeshPhysicalMaterial` par `onBeforeCompile`. Trois
+couches s'y additionnent :
+
+- **Les plis.** Un bruit fractal *ridged* : on replie le bruit autour de zero
+  puis on eleve le resultat a la puissance trois, ce qui transforme des collines
+  lisses en aretes vives. Quatre octaves, chacune tournee par rapport a la
+  precedente pour eviter les alignements sur les axes.
+- **Le survol.** Une bosse gaussienne suit le curseur, doublee d'une vibration
+  fine qui s'amortit avec la distance.
+- **Les impacts.** Chaque clic pousse une onde dans un tableau de cinq, un front
+  qui s'eloigne du point de contact et s'eteint en deux secondes.
+
+Les normales sont analytiques : la hauteur est evaluee trois fois par sommet,
+au point et a deux pas d'epsilon, et la normale sort du produit des derivees.
+C'est ce qui donne des aretes nettes plutot que le rendu mou d'une normale
+interpolee.
+
+Le materiau est metallique pur, sans texture de couleur : ce qu'on voit est le
+reflet de la piece. Elle est peinte a la main dans un canvas equirectangulaire
+-- une bande froide, une bande ambree pour la face doree, un debord orange de
+secours -- puis convolue par `PMREMGenerator`. Une carte d'epaisseur procedurale
+alimente l'iridescence, sans quoi le film n'aurait qu'une seule teinte au lieu
+du chatoiement du mylar.
+
+Le releve affiche des valeurs reelles : le point de contact en centimetres sur
+un panneau de 210 x 160 cm, et la fleche en millimetres.

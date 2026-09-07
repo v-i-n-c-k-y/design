@@ -1,0 +1,594 @@
+<title>Mylar 12 microns</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  /* Piece committed to a single dark world: aluminised film only reads as
+     metal against a near-black ground, so no light theme. Every colour is
+     painted explicitly so the page holds on any host background. */
+  :root {
+    --void: #0a0b0d;
+    --slate: #14161b;
+    --silver: #d8dde3;
+    --gold: #e8b661;
+    --ember: #ff6b35;
+    --mute: #737b88;
+    --hair: rgba(216, 221, 227, 0.14);
+    --pad: clamp(18px, 3vw, 38px);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--void);
+    color: var(--silver);
+    font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    overflow: hidden;
+  }
+
+  #sheet {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    cursor: crosshair;
+  }
+  #sheet:focus-visible {
+    outline: 2px solid var(--ember);
+    outline-offset: -4px;
+  }
+
+  /* Chrome floats over the film and never intercepts the pointer, except
+     where a control genuinely needs it. */
+  .hud {
+    position: fixed;
+    inset: 0;
+    padding: var(--pad);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 16px;
+    pointer-events: none;
+  }
+
+  .masthead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ember);
+    margin: 0;
+  }
+
+  .title {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700;
+    font-size: clamp(19px, 2.4vw, 28px);
+    letter-spacing: -0.015em;
+    margin: 0;
+    color: var(--silver);
+  }
+
+  .foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .panel {
+    background: color-mix(in srgb, var(--slate) 72%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--hair);
+    padding: 14px 16px;
+    display: grid;
+    gap: 7px;
+    font-size: 11px;
+    min-width: 218px;
+  }
+
+  .panel h2 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin: 0 0 3px;
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 18px;
+  }
+  .row dt { color: var(--mute); }
+  .row dd {
+    margin: 0;
+    color: var(--silver);
+    font-variant-numeric: tabular-nums;
+  }
+  .row dd.warm { color: var(--gold); }
+
+  dl { margin: 0; display: grid; gap: 7px; }
+
+  .hint {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: var(--mute);
+    margin: 10px 0 0;
+    transition: opacity 700ms ease;
+  }
+  .hint b { color: var(--silver); font-weight: 500; }
+  .hint.gone { opacity: 0.32; }
+
+  /* Impact counter reads as an instrument tick, not a score. */
+  #impacts { color: var(--ember); }
+
+  @media (max-width: 620px) {
+    .foot { flex-direction: column; align-items: stretch; }
+    .panel { min-width: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hint { transition: none; }
+  }
+
+  .fallback {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-content: center;
+    padding: 32px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--mute);
+  }
+  .fallback.on { display: grid; }
+</style>
+
+<canvas id="sheet" tabindex="0" aria-label="Couverture de survie en mylar : survolez pour la soulever, cliquez pour la faire claquer"></canvas>
+
+<div class="fallback" id="fallback">
+  <p>Cette pièce a besoin de WebGL.<br>Ouvrez-la dans un navigateur récent, accélération matérielle activée.</p>
+</div>
+
+<div class="hud">
+  <header class="masthead">
+    <p class="eyebrow">Couverture de survie</p>
+    <h1 class="title">Mylar 12&nbsp;microns</h1>
+  </header>
+
+  <div></div>
+
+  <div class="foot">
+    <section class="panel">
+      <h2>Matière</h2>
+      <dl>
+        <div class="row"><dt>Film</dt><dd>BoPET aluminisé</dd></div>
+        <div class="row"><dt>Épaisseur</dt><dd>12 µm</dd></div>
+        <div class="row"><dt>Format</dt><dd>210 × 160 cm</dd></div>
+        <div class="row"><dt>Masse</dt><dd>58 g</dd></div>
+        <div class="row"><dt>Faces</dt><dd class="warm">or / argent</dd></div>
+        <div class="row"><dt>Réflexion IR</dt><dd>90 %</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <h2>Relevé</h2>
+      <dl>
+        <div class="row"><dt>Contact X</dt><dd id="px">—</dd></div>
+        <div class="row"><dt>Contact Y</dt><dd id="py">—</dd></div>
+        <div class="row"><dt>Flèche</dt><dd id="amp">0,0 mm</dd></div>
+        <div class="row"><dt>Impacts</dt><dd id="impacts">0</dd></div>
+      </dl>
+    </section>
+
+    <p class="hint" id="hint">
+      <b>Survolez</b> la feuille pour la soulever · <b>cliquez</b> pour la faire claquer
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var canvas = document.getElementById("sheet");
+  var renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  } catch (err) {
+    document.getElementById("fallback").classList.add("on");
+    canvas.style.display = "none";
+    return;
+  }
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Real sheet is 210 x 160 cm; the mesh keeps that 1.3125 ratio so the
+  // readout can report genuine centimetres.
+  var SHEET_W = 3.28;
+  var SHEET_H = 2.50;
+  var RIPPLES = 5;
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.02;
+
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0b0d);
+
+  var camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 60);
+  camera.position.set(0, -0.34, 3.45);
+  camera.lookAt(0, 0, 0);
+
+  // --- Environment -------------------------------------------------------
+  // Aluminised film is almost pure mirror: what you see is the room, not the
+  // material. The room is painted here as an equirectangular canvas, with a
+  // cold key band, a warm amber band for the gold face, and a rescue-orange
+  // spill that streaks across the creases.
+  function paintRoom() {
+    var c = document.createElement("canvas");
+    c.width = 1024;
+    c.height = 512;
+    var g = c.getContext("2d");
+
+    var sky = g.createLinearGradient(0, 0, 0, 512);
+    sky.addColorStop(0.00, "#39435a");
+    sky.addColorStop(0.38, "#12151c");
+    sky.addColorStop(0.72, "#080a0e");
+    sky.addColorStop(1.00, "#040507");
+    g.fillStyle = sky;
+    g.fillRect(0, 0, 1024, 512);
+
+    function glow(x, y, rx, ry, color, alpha) {
+      g.save();
+      g.globalAlpha = alpha;
+      g.translate(x, y);
+      g.scale(rx / ry, 1);
+      var rad = g.createRadialGradient(0, 0, 0, 0, 0, ry);
+      rad.addColorStop(0, color);
+      rad.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = rad;
+      g.fillRect(-ry * 3, -ry, ry * 6, ry * 2);
+      g.restore();
+    }
+
+    glow(215, 118, 300, 104, "#ffffff", 1.0);   // key light
+    glow(660, 150, 250, 92, "#ffcb8a", 0.85);   // warm band, the gold face
+    glow(880, 300, 190, 118, "#ff7a3c", 0.42);  // rescue orange spill
+    glow(430, 372, 340, 96, "#5f86c8", 0.34);   // cool bounce from below
+
+    var tex = new THREE.CanvasTexture(c);
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  var pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+  var roomTex = paintRoom();
+  scene.environment = pmrem.fromEquirectangular(roomTex).texture;
+  roomTex.dispose();
+  pmrem.dispose();
+
+  scene.add(new THREE.AmbientLight(0x2a3346, 0.5));
+  var key = new THREE.DirectionalLight(0xffffff, 2.1);
+  key.position.set(-2.2, 2.6, 3.4);
+  scene.add(key);
+  var warm = new THREE.DirectionalLight(0xffb168, 1.5);
+  warm.position.set(2.8, -0.8, 2.2);
+  scene.add(warm);
+  var rim = new THREE.DirectionalLight(0x74a6ff, 0.8);
+  rim.position.set(0.4, -2.6, -1.6);
+  scene.add(rim);
+
+  // --- Iridescence thickness ---------------------------------------------
+  // Mylar's oil-slick shimmer comes from the film thickness varying across
+  // the sheet. A constant thickness gives one flat tint, so it is painted as
+  // soft blobs and fed to the material as a map.
+  function paintThickness() {
+    var c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 256;
+    var g = c.getContext("2d");
+    g.fillStyle = "#5a5a5a";
+    g.fillRect(0, 0, 256, 256);
+    for (var i = 0; i < 26; i++) {
+      var x = Math.random() * 256;
+      var y = Math.random() * 256;
+      var r = 26 + Math.random() * 74;
+      var rad = g.createRadialGradient(x, y, 0, x, y, r);
+      var tone = Math.random() > 0.5 ? "255,255,255" : "0,0,0";
+      rad.addColorStop(0, "rgba(" + tone + ",0.5)");
+      rad.addColorStop(1, "rgba(" + tone + ",0)");
+      g.fillStyle = rad;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    var tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 2);
+    return tex;
+  }
+
+  // --- Sheet -------------------------------------------------------------
+  var segments = window.innerWidth < 700 ? 128 : 200;
+  var geometry = new THREE.PlaneGeometry(SHEET_W, SHEET_H, segments, segments);
+
+  var material = new THREE.MeshPhysicalMaterial({
+    color: 0xc4cbd4,
+    metalness: 1.0,
+    roughness: 0.20,
+    side: THREE.DoubleSide,
+    envMapIntensity: 1.75,
+    iridescence: 0.9,
+    iridescenceIOR: 1.28,
+    iridescenceThicknessRange: [140, 640],
+    iridescenceThicknessMap: paintThickness(),
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.22
+  });
+
+  var uniforms = {
+    uTime: { value: 0 },
+    uPointer: { value: new THREE.Vector2(9, 9) },
+    uHover: { value: 0 },
+    uCrumple: { value: 0.19 },
+    uRipples: { value: [] }
+  };
+  for (var r = 0; r < RIPPLES; r++) {
+    uniforms.uRipples.value.push(new THREE.Vector4(0, 0, -1, 0));
+  }
+
+  // Height field and its analytic derivative. Creases come from ridged
+  // fractal noise: folding the noise about zero and raising it to a power
+  // turns smooth hills into the sharp spines a crumpled film actually has.
+  var SHEET_GLSL = [
+    "#define RIPPLE_COUNT " + RIPPLES,
+    "#define EPS 0.012",
+    "uniform float uTime;",
+    "uniform vec2 uPointer;",
+    "uniform float uHover;",
+    "uniform float uCrumple;",
+    "uniform vec4 uRipples[RIPPLE_COUNT];",
+    "float hash21(vec2 p) {",
+    "  p = fract(p * vec2(233.34, 851.73));",
+    "  p += dot(p, p + 23.45);",
+    "  return fract(p.x * p.y);",
+    "}",
+    "float vnoise(vec2 p) {",
+    "  vec2 i = floor(p);",
+    "  vec2 f = fract(p);",
+    "  vec2 u = f * f * (3.0 - 2.0 * f);",
+    "  float a = hash21(i);",
+    "  float b = hash21(i + vec2(1.0, 0.0));",
+    "  float c = hash21(i + vec2(0.0, 1.0));",
+    "  float d = hash21(i + vec2(1.0, 1.0));",
+    "  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);",
+    "}",
+    "float crease(vec2 p) {",
+    "  float sum = 0.0;",
+    "  float amp = 0.5;",
+    "  mat2 turn = mat2(0.86, 0.51, -0.51, 0.86);",
+    "  for (int i = 0; i < 4; i++) {",
+    "    float n = vnoise(p) * 2.0 - 1.0;",
+    "    sum += amp * pow(1.0 - abs(n), 3.0);",
+    "    p = turn * p * 2.07 + 11.3;",
+    "    amp *= 0.52;",
+    "  }",
+    "  return sum;",
+    "}",
+    "float sheetHeight(vec2 p) {",
+    "  vec2 q = p * 1.35 + vec2(uTime * 0.014, uTime * 0.009);",
+    "  float h = (crease(q) - 0.46) * uCrumple;",
+    "  float d = distance(p, uPointer);",
+    "  h += uHover * 0.23 * exp(-d * d * 1.9);",
+    "  h += uHover * 0.032 * sin(d * 17.0 - uTime * 4.5) * exp(-d * d * 2.6);",
+    "  for (int i = 0; i < RIPPLE_COUNT; i++) {",
+    "    vec4 wave = uRipples[i];",
+    "    if (wave.z > 0.0) {",
+    "      float front = distance(p, wave.xy) - wave.z * 2.4;",
+    "      h += wave.w * sin(front * 9.0) * exp(-front * front * 5.0) * exp(-wave.z * 1.9);",
+    "    }",
+    "  }",
+    "  return h;",
+    "}"
+  ].join("\n");
+
+  material.onBeforeCompile = function (shader) {
+    shader.uniforms.uTime = uniforms.uTime;
+    shader.uniforms.uPointer = uniforms.uPointer;
+    shader.uniforms.uHover = uniforms.uHover;
+    shader.uniforms.uCrumple = uniforms.uCrumple;
+    shader.uniforms.uRipples = uniforms.uRipples;
+
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\n" + SHEET_GLSL)
+      .replace(
+        "#include <beginnormal_vertex>",
+        [
+          "float h = sheetHeight(position.xy);",
+          "float hx = sheetHeight(position.xy + vec2(EPS, 0.0));",
+          "float hy = sheetHeight(position.xy + vec2(0.0, EPS));",
+          "vec3 objectNormal = normalize(vec3(-(hx - h) / EPS, -(hy - h) / EPS, 1.0));",
+          "#ifdef USE_TANGENT",
+          "  vec3 objectTangent = vec3( tangent.xyz );",
+          "#endif"
+        ].join("\n")
+      )
+      .replace(
+        "#include <begin_vertex>",
+        "vec3 transformed = vec3(position.x, position.y, position.z + h);"
+      );
+  };
+
+  var sheet = new THREE.Mesh(geometry, material);
+  scene.add(sheet);
+
+  // --- Interaction -------------------------------------------------------
+  // The mesh stays axis aligned, so a ray against the z = 0 plane lands
+  // straight in sheet coordinates: no matrix juggling, and the readout can
+  // convert to centimetres with a single scale.
+  var raycaster = new THREE.Raycaster();
+  var flat = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  var ndc = new THREE.Vector2();
+  var hit = new THREE.Vector3();
+
+  var hoverTarget = 0;
+  var parallax = new THREE.Vector2();
+  var parallaxTarget = new THREE.Vector2();
+  var slot = 0;
+  var impacts = 0;
+  var flash = 0;
+  var lastContact = null;
+
+  var elX = document.getElementById("px");
+  var elY = document.getElementById("py");
+  var elAmp = document.getElementById("amp");
+  var elImpacts = document.getElementById("impacts");
+  var hint = document.getElementById("hint");
+
+  function sheetPoint(clientX, clientY) {
+    ndc.x = (clientX / window.innerWidth) * 2 - 1;
+    ndc.y = -(clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    return raycaster.ray.intersectPlane(flat, hit) ? hit : null;
+  }
+
+  function readout(point) {
+    if (!point) {
+      elX.textContent = "—";
+      elY.textContent = "—";
+      return;
+    }
+    var cmX = ((point.x + SHEET_W / 2) / SHEET_W) * 210;
+    var cmY = ((SHEET_H / 2 - point.y) / SHEET_H) * 160;
+    elX.textContent = Math.round(Math.max(0, Math.min(210, cmX))) + " cm";
+    elY.textContent = Math.round(Math.max(0, Math.min(160, cmY))) + " cm";
+  }
+
+  function strike(point, force) {
+    if (!point) return;
+    var wave = uniforms.uRipples.value[slot];
+    wave.set(point.x, point.y, 0.001, force);
+    slot = (slot + 1) % RIPPLES;
+    impacts += 1;
+    elImpacts.textContent = impacts;
+    flash = 1;
+  }
+
+  function markUsed() {
+    hint.classList.add("gone");
+  }
+
+  canvas.addEventListener("pointermove", function (e) {
+    var point = sheetPoint(e.clientX, e.clientY);
+    if (point) {
+      uniforms.uPointer.value.set(point.x, point.y);
+      lastContact = point.clone();
+      hoverTarget = 1;
+    }
+    parallaxTarget.set(
+      (e.clientX / window.innerWidth - 0.5) * 0.28,
+      -(e.clientY / window.innerHeight - 0.5) * 0.2
+    );
+    readout(point);
+    markUsed();
+  });
+
+  canvas.addEventListener("pointerdown", function (e) {
+    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+    var point = sheetPoint(e.clientX, e.clientY);
+    if (point) {
+      uniforms.uPointer.value.set(point.x, point.y);
+      lastContact = point.clone();
+      hoverTarget = 1;
+      readout(point);
+    }
+    strike(point, 0.34);
+    markUsed();
+  });
+
+  canvas.addEventListener("pointerleave", function () {
+    hoverTarget = 0;
+    parallaxTarget.set(0, 0);
+    readout(null);
+  });
+
+  // Keyboard reaches the same gesture: space or enter strikes the last
+  // contact point, or the middle of the sheet.
+  canvas.addEventListener("keydown", function (e) {
+    if (e.key !== " " && e.key !== "Enter") return;
+    e.preventDefault();
+    var point = lastContact || new THREE.Vector3(0, 0, 0);
+    uniforms.uPointer.value.set(point.x, point.y);
+    hoverTarget = 1;
+    readout(point);
+    strike(point, 0.34);
+    markUsed();
+  });
+
+  window.addEventListener("resize", function () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // --- Loop --------------------------------------------------------------
+  var clock = new THREE.Clock();
+
+  function frame() {
+    var dt = Math.min(clock.getDelta(), 0.05);
+    if (!reduced) uniforms.uTime.value += dt;
+
+    uniforms.uHover.value += (hoverTarget - uniforms.uHover.value) * Math.min(1, dt * 6);
+
+    var live = 0;
+    for (var i = 0; i < RIPPLES; i++) {
+      var wave = uniforms.uRipples.value[i];
+      if (wave.z > 0) {
+        wave.z += dt;
+        live += wave.w * Math.exp(-wave.z * 1.9);
+        if (wave.z > 2.4) {
+          wave.z = -1;
+          wave.w = 0;
+        }
+      }
+    }
+
+    // Struck film springs, so the crumple amplitude spikes and settles.
+    flash += (0 - flash) * Math.min(1, dt * 3.2);
+    uniforms.uCrumple.value = 0.19 + flash * 0.07;
+    renderer.toneMappingExposure = 1.02 + flash * 0.22;
+
+    // Flèche: the sheet's peak deflection, in millimetres of the real 210 cm
+    // panel. Scene unit 3.28 spans 2100 mm.
+    var deflection = (uniforms.uHover.value * 0.23 + live) * (2100 / SHEET_W);
+    elAmp.textContent = deflection.toFixed(1).replace(".", ",") + " mm";
+
+    parallax.lerp(parallaxTarget, Math.min(1, dt * 3));
+    camera.position.x = parallax.x;
+    camera.position.y = -0.34 + parallax.y;
+    camera.lookAt(0, 0, 0);
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+
+  frame();
+})();
+</script>
