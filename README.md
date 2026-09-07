@@ -253,11 +253,14 @@ aluminise quand on le touche. Pas de dependance a installer : ouvrez
 
 ## Principe
 
-**La forme vient de la physique.** Une grille de 32 x 32 particules cannon-es,
-tenue par des contraintes de distance : les liens en lignes et en colonnes
-empechent le film de s'etirer, les diagonales l'empechent de cisailler -- ce qui
-sinon le plisserait en losanges. Seuls les quatre coins sont fixes, le reste
-pend sous une gravite douce. Une feuille parfaitement plane n'ayant aucune
+**La forme vient de la physique.** Une grille de 30 x 30 particules cannon-es,
+tenue par trois familles de contraintes de distance : les liens en lignes et en
+colonnes empechent le film de s'etirer, les diagonales l'empechent de cisailler
+-- ce qui sinon le plisserait en losanges -- et des liens souples qui enjambent
+le voisin immediat lui donnent sa raideur en flexion. Cette troisieme famille
+est ce qui separe une soie qui coule d'un film qui tient ses plis : une
+contrainte de distance resiste a l'etirement, mais pas du tout au pliage. Seuls
+les quatre coins sont fixes, le reste pend sous une gravite douce. Une feuille parfaitement plane n'ayant aucune
 raison de flamber d'un cote plutot que de l'autre, un souffle de bruit sur les
 positions de depart tranche pour elle.
 
@@ -275,12 +278,13 @@ autour de zero puis eleve au cube, ce qui transforme des collines lisses en
 aretes vives -- puis derive en normales. Son intensite tient dans une seule
 constante, `CLOTH.crinkle`.
 
-**Le materiau est metallique pur**, sans texture de couleur : ce qu'on voit est
-le reflet de la piece. Elle est peinte a la main dans un canvas
-equirectangulaire -- une bande froide, une bande ambree pour la face doree, un
-debord orange de secours -- puis convolue par `PMREMGenerator`. Une carte
-d'epaisseur procedurale alimente l'iridescence, sans quoi le film n'aurait
-qu'une seule teinte au lieu du chatoiement du mylar.
+**Le materiau est metallique pur**, sans texture de couleur : pour un metal la
+teinte se regle par la reflectance, et celle-ci est celle de l'or. Ce qu'on voit
+est donc surtout le reflet de la piece, peinte a la main dans un canvas
+equirectangulaire -- une cle blanc chaud, une large bande ambree, un debord d'or
+profond, et une seule retombee froide sans laquelle l'or s'aplatit en orange --
+puis convolue par `PMREMGenerator`. Une carte d'epaisseur procedurale alimente
+l'iridescence, tenue basse : trop forte, elle vire au vert et mange l'or.
 
 Tous les reglages tiennent dans l'objet `CLOTH` en tete de script : taille de la
 grille, masse, gravite, amortissement, force du survol, impulsion du clic, et
