@@ -29,8 +29,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance
 
-from boat import convex_hull, inset, tile_colors
-from riso import parse_color
+from boats.boat import convex_hull, inset, tile_colors
+from riso.riso import parse_color
 
 # Un triangle a au plus 3 voisins, donc au plus 3 paires de voisins et 6 chaines
 MAX_FREEDOM = 9

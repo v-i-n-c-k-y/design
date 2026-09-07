@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance
 
-from riso import RISO_COLORS, parse_color
+from riso.riso import RISO_COLORS, parse_color
 
 # Matrice de Bayer 4x4 ramenee dans [-0.5, 0.5[ pour le tramage ordonne
 BAYER4 = (np.array([

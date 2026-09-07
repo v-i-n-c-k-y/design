@@ -1,6 +1,15 @@
-# Riso
+# Design
 
-Outil Python pour transformer une photo en impression style risograph (risographie).
+Trois effets de pixelisation, du plus simple au plus construit.
+
+| Dossier | Script | Effet |
+|---------|--------|-------|
+| `riso/` | `riso.py` | Trame halftone en une encre |
+| `boats/` | `boat.py` | Pavage regulier en tuiles "bateau", duotone risograph |
+| `boats/` | `fleet.py` | Pavage par croissance, couleurs de la photo |
+
+`ressources/` porte l'image de test et le SVG dont sont tirees les encres du
+degrade. Les rendus produits par les scripts ne sont pas versionnes.
 
 ## Installation
 
@@ -8,10 +17,25 @@ Outil Python pour transformer une photo en impression style risograph (risograph
 pip install Pillow numpy
 ```
 
+Les scripts s'appellent en modules, depuis la racine du depot : `boats` importe
+`riso` pour les encres et l'analyse des couleurs.
+
+```bash
+python -m riso.riso photo.jpg --color red -o output.png
+python -m boats.boat photo.jpg -s 64 -g 5
+python -m boats.fleet photo.jpg -s 64 -g 5
+```
+
+---
+
+# Riso
+
+Trame halftone : une photo, une encre.
+
 ## Utilisation
 
 ```bash
-python riso.py photo.jpg --color red -o output.png
+python -m riso.riso photo.jpg --color red -o output.png
 ```
 
 ### Arguments
@@ -29,13 +53,13 @@ python riso.py photo.jpg --color red -o output.png
 
 ```bash
 # Impression bleue avec gros points
-python riso.py portrait.jpg -c blue -d 12
+python -m riso.riso portrait.jpg -c blue -d 12
 
 # Couleur personnalisee avec contraste fort
-python riso.py photo.jpg -c "#E84B20" --contrast 1.5
+python -m riso.riso photo.jpg -c "#E84B20" --contrast 1.5
 
 # Trame fine, angle different
-python riso.py photo.jpg -c teal -d 5 --angle 30
+python -m riso.riso photo.jpg -c teal -d 5 --angle 30
 ```
 
 ## Couleurs predefinies
@@ -81,7 +105,7 @@ orphelins, et un orphelin de taille 1 ou 2 ne peut jamais etre resorbe en
 absorbant des tuiles completes -- une question de multiple de trois.
 
 ```bash
-python boat.py photo.jpg -c "#ff7aa2,#ffa26b" -s 64 -g 5 -o output.png
+python -m boats.boat photo.jpg -c "#ff7aa2,#ffa26b" -s 64 -g 5 -o output.png
 ```
 
 ### Arguments
@@ -109,26 +133,26 @@ a l'orange, puis au rose, puis a leur superposition.
 
 ```bash
 # Duotone du degrade risograph-boat.svg
-python boat.py photo.jpg -s 64 -g 5
+python -m boats.boat photo.jpg -s 64 -g 5
 
 # Trois encres sur papier creme, tuiles jointives
-python boat.py photo.jpg -c pink,blue,black -p "#f4eadc" -l 8 -g 0
+python -m boats.boat photo.jpg -c pink,blue,black -p "#f4eadc" -l 8 -g 0
 
 # Grosses tuiles, aplats francs sans tramage
-python boat.py photo.jpg -s 100 -l 4 --no-dither
+python -m boats.boat photo.jpg -s 100 -l 4 --no-dither
 
 # Pavage regulier, tous les bateaux horizontaux
-python boat.py photo.jpg -s 64 -g 5 --mix 0
+python -m boats.boat photo.jpg -s 64 -g 5 --mix 0
 
 # Autre tirage aleatoire des orientations
-python boat.py photo.jpg -s 64 -g 5 --seed 7
+python -m boats.boat photo.jpg -s 64 -g 5 --seed 7
 ```
 
 ---
 
 # Fleet
 
-Meme tuile que `boat.py` -- trois triangles adjacents -- mais un pavage construit
+Meme tuile que `boats/boat.py` -- trois triangles adjacents -- mais un pavage construit
 par croissance au lieu d'un decoupage regulier, et aucune palette : chaque bateau
 prend la couleur moyenne de l'aire de l'image qu'il recouvre. Les bateaux
 epousent les formes de l'image et ne s'alignent sur aucune grille.
@@ -187,7 +211,7 @@ losange ou en simple triangle -- ils remplissent leur place, ce ne sont pas des
 trous.
 
 ```bash
-python fleet.py photo.jpg -s 64 -g 5 -o output.png
+python -m boats.fleet photo.jpg -s 64 -g 5 -o output.png
 ```
 
 ### Arguments
@@ -208,11 +232,11 @@ python fleet.py photo.jpg -s 64 -g 5 -o output.png
 
 ```bash
 # Mosaique fidele aux couleurs de la photo
-python fleet.py photo.jpg -s 64 -g 5
+python -m boats.fleet photo.jpg -s 64 -g 5
 
 # Maille cisaillee, bateaux penches, trame fine
-python fleet.py photo.jpg -s 22 -a 75 -g 1
+python -m boats.fleet photo.jpg -s 22 -a 75 -g 1
 
 # Grosses tuiles detachees sur fond sombre
-python fleet.py photo.jpg -s 40 -g 3 -b "#1b1b2a"
+python -m boats.fleet photo.jpg -s 40 -g 3 -b "#1b1b2a"
 ```
