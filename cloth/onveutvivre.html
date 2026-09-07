@@ -1,0 +1,715 @@
+<title>On veut vivre — page de garde</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  /* Étude de mise en page. Un seul monde, chaud : la couverture réfléchit une
+     canicule, donc rien de froid n'a sa place ici. Toutes les couleurs sont
+     posées explicitement pour que la page tienne sur n'importe quel fond. */
+  :root {
+    --ash: #0d0906;        /* noir de fumée, biaisé rouge */
+    --char: #1a1109;
+    --foil: #f6ecdd;       /* blanc chaud du texte */
+    --amber: #f2a93b;      /* l'or de la couverture */
+    --ember: #ff5a1f;      /* le signal, celui des secours et du feu */
+    --mute: #a08d76;
+    --hair: rgba(246, 236, 221, 0.16);
+    --pad: clamp(20px, 3.4vw, 56px);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--ash);
+    color: var(--foil);
+    font-family: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #blanket {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    z-index: 0;
+  }
+
+  /* Voile : la couverture reste lisible en haut à droite, le texte s'assoit sur
+     un champ sombre en bas à gauche. Sans lui, rien de tout cela ne se lit. */
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      linear-gradient(105deg, var(--ash) 4%, rgba(13, 9, 6, 0.86) 34%, rgba(13, 9, 6, 0.12) 72%, rgba(13, 9, 6, 0.42) 100%),
+      linear-gradient(to top, var(--ash) 2%, rgba(13, 9, 6, 0) 46%);
+  }
+
+  .page {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    padding: var(--pad);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: clamp(24px, 4vh, 52px);
+    pointer-events: none;
+  }
+  .page a, .page button { pointer-events: auto; }
+
+  /* --- Bandeau --- */
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .wordmark {
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+
+  .study {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ash);
+    background: var(--amber);
+    padding: 4px 9px;
+  }
+
+  /* --- Titre --- */
+  .hero { align-self: center; max-width: 20ch; display: grid; gap: clamp(10px, 1.6vh, 20px); }
+
+  .lede {
+    margin: 0;
+    font-size: clamp(15px, 1.5vw, 21px);
+    font-weight: 600;
+    line-height: 1.35;
+    max-width: 17ch;
+    text-wrap: balance;
+  }
+  .lede em { font-style: normal; color: var(--ember); }
+
+  .shout {
+    margin: 0;
+    font-weight: 900;
+    font-size: clamp(52px, 11.5vw, 168px);
+    line-height: 0.82;
+    letter-spacing: -0.045em;
+    text-wrap: balance;
+  }
+
+  .march {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: var(--foil);
+  }
+  .march .day { color: var(--amber); font-weight: 500; }
+  .march .count {
+    color: var(--ash);
+    background: var(--ember);
+    padding: 3px 8px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- Bas de page --- */
+  .bottom { display: grid; gap: clamp(18px, 2.6vh, 30px); }
+
+  /* Trois demandes, pas une séquence : ce sont leurs noms qui les distinguent,
+     pas un numéro d'ordre. */
+  .plans {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--hair);
+    border: 1px solid var(--hair);
+  }
+  .plan {
+    background: color-mix(in srgb, var(--char) 84%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 15px 17px;
+    display: grid;
+    gap: 6px;
+    align-content: start;
+  }
+  .plan h2 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: var(--amber);
+  }
+  .plan p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--mute);
+  }
+
+  .tally {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: clamp(18px, 3vw, 44px);
+    flex-wrap: wrap;
+  }
+
+  .figures {
+    display: flex;
+    gap: clamp(20px, 3vw, 46px);
+    flex-wrap: wrap;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  .figure { display: grid; gap: 3px; }
+  .figure .n {
+    font-size: clamp(20px, 2.4vw, 30px);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .figure .k {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--mute);
+  }
+
+  /* La barre dit ce que le chiffre dit : 58 % de l'objectif */
+  .gauge { width: 100%; max-width: 340px; display: grid; gap: 7px; }
+  .track { height: 3px; background: rgba(246, 236, 221, 0.16); }
+  .fill { height: 100%; width: 58%; background: var(--ember); }
+  .gauge small {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mute);
+  }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .cta {
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    padding: 13px 24px;
+    background: var(--ember);
+    color: var(--ash);
+    border: 1px solid var(--ember);
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+  .cta:hover { background: var(--amber); border-color: var(--amber); }
+  .cta.ghost { background: none; color: var(--foil); border-color: var(--hair); }
+  .cta.ghost:hover { background: var(--foil); color: var(--ash); border-color: var(--foil); }
+  .cta:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+
+  .colophon {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--mute);
+    margin: 0;
+    max-width: 62ch;
+    border-top: 1px solid var(--hair);
+    padding-top: 12px;
+  }
+
+  @media (max-width: 720px) {
+    .hero { max-width: none; }
+    .tally { align-items: stretch; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cta { transition: none; }
+  }
+
+  .fallback {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    display: none;
+    place-content: center;
+    padding: 32px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--mute);
+    background: var(--ash);
+  }
+  .fallback.on { display: grid; }
+</style>
+
+<canvas id="blanket" aria-hidden="true"></canvas>
+<div class="scrim"></div>
+
+<div class="fallback" id="fallback">
+  <p id="fallbackText">Cette page a besoin de WebGL pour son fond.</p>
+</div>
+
+<div class="page">
+  <div class="top">
+    <p class="wordmark">On veut vivre</p>
+    <span class="study">Étude de mise en page</span>
+  </div>
+
+  <div class="hero">
+    <p class="lede">Face aux <em>canicules</em>, aux <em>incendies</em>, aux <em>empoisonnements</em></p>
+    <h1 class="shout">on veut vivre</h1>
+    <p class="march">
+      <span>Marche nationale</span>
+      <span class="day">26 septembre 2026</span>
+      <span class="count" id="countdown">J−00</span>
+    </p>
+  </div>
+
+  <div class="bottom">
+    <div class="plans">
+      <section class="plan">
+        <h2>Plan d'urgence</h2>
+        <p>Des lieux frais dans chaque bassin de vie. Des écoles, des crèches, des hôpitaux et des EHPAD où l'on ne meure pas de chaud.</p>
+      </section>
+      <section class="plan">
+        <h2>Plan d'adaptation</h2>
+        <p>Le Fonds vert rétabli, l'ingénierie publique rendue aux territoires, les passoires thermiques rénovées.</p>
+      </section>
+      <section class="plan">
+        <h2>Plan d'atténuation</h2>
+        <p>La fin des subventions aux énergies fossiles, et aucun nouveau projet fossile ouvert par une entreprise française.</p>
+      </section>
+    </div>
+
+    <div class="tally">
+      <div class="figures">
+        <div class="figure"><span class="n">28 848</span><span class="k">signataires</span></div>
+        <div class="figure"><span class="n">3 580</span><span class="k">organisations</span></div>
+        <div class="figure"><span class="n">7 300</span><span class="k">morts de la chaleur</span></div>
+      </div>
+
+      <div class="gauge">
+        <div class="track"><div class="fill"></div></div>
+        <small>58 % de l'objectif de 50 000 signatures</small>
+      </div>
+
+      <div class="actions">
+        <a class="cta" href="https://onveutvivre.fr">Signer l'appel</a>
+        <a class="cta ghost" href="https://onveutvivre.fr">Déclarer une marche</a>
+      </div>
+    </div>
+
+    <p class="colophon">
+      Maquette. Le fond est une couverture de survie simulée — film de BoPET
+      aluminisé de 12 µm, l'objet qu'on tend aux gens sortis d'une canicule ou
+      d'un incendie. Elle réfléchit ici un ciel de canicule, sans bleu. Chiffres
+      relevés sur onveutvivre.fr le 7 septembre 2026.
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script type="module">
+"use strict";
+
+// Compte à rebours calculé, pas écrit en dur : la page reste juste tant que la
+// marche n'a pas eu lieu.
+const MARCH = new Date("2026-09-26T00:00:00+02:00");
+{
+  const days = Math.ceil((MARCH - Date.now()) / 86400000);
+  const el = document.getElementById("countdown");
+  el.textContent = days > 0 ? "J−" + days : days === 0 ? "aujourd'hui" : "J+" + -days;
+}
+
+const canvas = document.getElementById("blanket");
+const fallback = document.getElementById("fallback");
+
+let CANNON, renderer;
+try {
+  CANNON = await import("https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js");
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+} catch (err) {
+  fallback.classList.add("on");
+  throw err;
+}
+
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const SHEET_W = 3.28;
+const SHEET_H = 2.50;
+
+// Plus calme que la pièce d'étude : le fond d'une page de garde ne doit pas
+// disputer la lecture au titre.
+const CLOTH = {
+  grid: 26,
+  mass: 0.05,
+  gravity: -1.4,
+  damping: 0.58,
+  bendForce: 70,
+  hoverForce: 3.6,
+  hoverRadius: 0.62,
+  tapImpulse: 0.8,
+  crinkle: 0.22,
+  breeze: 0.20
+};
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.66;
+renderer.setClearColor(0x0d0906, 1);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 60);
+camera.position.set(0, -0.12, 3.7);
+camera.lookAt(0, 0, 0);
+
+// --- Le ciel de canicule -------------------------------------------------
+// Le film est un miroir : ce qu'on voit est le ciel, pas la matière. Adapter
+// les couleurs de la couverture, c'est donc repeindre ce ciel. Celui-ci n'a
+// aucun bleu : la brume de chaleur diffuse le soleil en une nappe ocre, et
+// l'horizon vire au blanc chauffé plutôt qu'au pâle.
+const SUN_ELEVATION = 24;
+const SUN_AZIMUTH = 58;   // derrière la caméra, pour éclairer la face visible
+const sunDir = new THREE.Vector3();
+{
+  const el = THREE.MathUtils.degToRad(SUN_ELEVATION);
+  const az = THREE.MathUtils.degToRad(SUN_AZIMUTH);
+  sunDir.set(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
+}
+
+function paintHeatSky() {
+  const W = 1024;
+  const H = 512;
+  // Demi-flottant : un canvas plafonne à 255, donc un soleil peint dessus ne
+  // dépasse pas le ciel autour et ne jette aucun éclat sur le métal.
+  const data = new Uint16Array(W * H * 4);
+  const half = THREE.DataUtils.toHalfFloat;
+
+  const zenith = [0.46, 0.34, 0.22];
+  const skyline = [1.00, 0.84, 0.58];
+  const scorched = [0.34, 0.24, 0.16];
+  const sunColor = [1.0, 0.88, 0.66];
+  // Un soleil de canicule n'a pas de bord net : la brume l'étale
+  const core = Math.cos(THREE.MathUtils.degToRad(5));
+  const halo = Math.cos(THREE.MathUtils.degToRad(38));
+
+  for (let y = 0; y < H; y++) {
+    // three échantillonne en v = asin(dir.y) / PI + 0.5, donc la dernière
+    // rangée du tableau est le zénith
+    const v = (y + 0.5) / H;
+    const elev = (v - 0.5) * Math.PI;
+    const up = Math.sin(elev);
+    const flat = Math.cos(elev);
+
+    const base = [0, 0, 0];
+    if (up >= 0) {
+      const t = Math.pow(up, 0.5);
+      for (let c = 0; c < 3; c++) base[c] = (skyline[c] * (1 - t) + zenith[c] * t) * 2.5;
+    } else {
+      const t = Math.min(1, -up * 2.4);
+      for (let c = 0; c < 3; c++) base[c] = scorched[c] * (1 - t * 0.4) * 1.2;
+    }
+
+    for (let x = 0; x < W; x++) {
+      const phi = ((x + 0.5) / W - 0.5) * Math.PI * 2;
+      const toSun = Math.cos(phi) * flat * sunDir.x + up * sunDir.y +
+                    Math.sin(phi) * flat * sunDir.z;
+
+      let glow = 0;
+      if (toSun > halo) {
+        const t = (toSun - halo) / (1 - halo);
+        glow = t * t * 9;
+        if (toSun > core) glow += 26;
+      }
+
+      const o = (y * W + x) * 4;
+      for (let c = 0; c < 3; c++) data[o + c] = half(base[c] + sunColor[c] * glow);
+      data[o + 3] = half(1);
+    }
+  }
+
+  const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+const skyTex = paintHeatSky();
+scene.environment = pmrem.fromEquirectangular(skyTex).texture;
+scene.background = skyTex;
+pmrem.dispose();
+
+const sun = new THREE.DirectionalLight(0xffe0ad, 3.1);
+sun.position.copy(sunDir).multiplyScalar(10);
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xffc98a, 0x6b4a30, 1.15));
+
+// --- Relief fin ----------------------------------------------------------
+function value(x, y, seed) {
+  let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+
+function smooth(x, y, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf);
+  const v = yf * yf * (3 - 2 * yf);
+  const a = value(xi, yi, seed), b = value(xi + 1, yi, seed);
+  const c = value(xi, yi + 1, seed), d = value(xi + 1, yi + 1, seed);
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+
+// Bruit *ridged* : replier le bruit autour de zéro transforme des collines
+// lisses en arêtes vives, celles que laisse le pliage en pochette.
+function creases(x, y) {
+  let sum = 0, amp = 0.5, freq = 1;
+  for (let o = 0; o < 4; o++) {
+    const n = smooth(x * freq, y * freq, o) * 2 - 1;
+    sum += amp * Math.pow(1 - Math.abs(n), 3);
+    freq *= 2.07;
+    amp *= 0.55;
+  }
+  return sum;
+}
+
+function paintCreases(size, cells, strength) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const img = g.createImageData(size, size);
+  const step = cells / size;
+  const h = (i, j) => creases(i * step, j * step);
+
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const dx = (h(i + 1, j) - h(i - 1, j)) * strength;
+      const dy = (h(i, j + 1) - h(i, j - 1)) * strength;
+      const len = Math.hypot(dx, dy, 1);
+      const o = (j * size + i) * 4;
+      img.data[o] = ((-dx / len) * 0.5 + 0.5) * 255;
+      img.data[o + 1] = ((-dy / len) * 0.5 + 0.5) * 255;
+      img.data[o + 2] = ((1 / len) * 0.5 + 0.5) * 255;
+      img.data[o + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 2.3);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// --- Le film -------------------------------------------------------------
+const N = CLOTH.grid;
+const geometry = new THREE.PlaneGeometry(SHEET_W, SHEET_H, N - 1, N - 1);
+
+const material = new THREE.MeshPhysicalMaterial({
+  // Cuivre chaud plutôt que l'or froid de l'étude : la couverture prend la
+  // couleur de ce qu'elle réfléchit, et ici c'est une canicule
+  color: 0xf0a45a,
+  metalness: 1.0,
+  roughness: 0.30,
+  side: THREE.DoubleSide,
+  envMapIntensity: 1.8,
+  iridescence: 0.35,
+  iridescenceIOR: 1.32,
+  iridescenceThicknessRange: [200, 460],
+  normalMap: paintCreases(256, 7, 1.4),
+  normalScale: new THREE.Vector2(CLOTH.crinkle, CLOTH.crinkle),
+  clearcoat: 0.45,
+  clearcoatRoughness: 0.26
+});
+
+const sheet = new THREE.Mesh(geometry, material);
+scene.add(sheet);
+
+// --- Simulation ----------------------------------------------------------
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, CLOTH.gravity, 0) });
+world.solver.iterations = 9;
+world.allowSleep = false;
+
+// Rien n'entre en collision : le film n'est mû que par ses contraintes et par
+// les forces du curseur, donc la broadphase comparerait les corps pour rien.
+class NoContacts extends CANNON.Broadphase {
+  collisionPairs() {}
+}
+world.broadphase = new NoContacts();
+
+const stepX = SHEET_W / (N - 1);
+const stepY = SHEET_H / (N - 1);
+const particles = [];
+
+for (let j = 0; j < N; j++) {
+  const row = [];
+  for (let i = 0; i < N; i++) {
+    const pinned = (i === 0 || i === N - 1) && (j === 0 || j === N - 1);
+    const body = new CANNON.Body({
+      mass: pinned ? 0 : CLOTH.mass,
+      shape: new CANNON.Particle(),
+      linearDamping: CLOTH.damping,
+      position: new CANNON.Vec3(
+        -SHEET_W / 2 + i * stepX,
+        SHEET_H / 2 - j * stepY,
+        pinned ? 0 : (value(i, j, 5) - 0.5) * 0.012
+      )
+    });
+    world.addBody(body);
+    row.push(body);
+  }
+  particles.push(row);
+}
+
+const diagonal = Math.hypot(stepX, stepY);
+const link = (a, b, distance, maxForce) =>
+  world.addConstraint(new CANNON.DistanceConstraint(a, b, distance, maxForce));
+
+for (let j = 0; j < N; j++) {
+  for (let i = 0; i < N; i++) {
+    // Structure et cisaillement, rigides : le film ne s'étire pas
+    if (i < N - 1) link(particles[j][i], particles[j][i + 1], stepX);
+    if (j < N - 1) link(particles[j][i], particles[j + 1][i], stepY);
+    if (i < N - 1 && j < N - 1) {
+      link(particles[j][i], particles[j + 1][i + 1], diagonal);
+      link(particles[j][i + 1], particles[j + 1][i], diagonal);
+    }
+    // Flexion : un lien souple qui enjambe le voisin immédiat. Une contrainte
+    // de distance résiste à l'étirement mais pas au pliage, et c'est lui qui
+    // sépare une soie qui coule d'un film qui tient ses plis.
+    if (i < N - 2) link(particles[j][i], particles[j][i + 2], stepX * 2, CLOTH.bendForce);
+    if (j < N - 2) link(particles[j][i], particles[j + 2][i], stepY * 2, CLOTH.bendForce);
+  }
+}
+
+// --- Interaction ---------------------------------------------------------
+const raycaster = new THREE.Raycaster();
+const flat = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const ndc = new THREE.Vector2();
+const hit = new THREE.Vector3();
+const push = new CANNON.Vec3(0, 0, 0);
+const centre = new CANNON.Vec3(0, 0, 0);
+
+let hovering = false;
+let pointerX = 0;
+let pointerY = 0;
+
+function sheetPoint(clientX, clientY) {
+  ndc.x = (clientX / window.innerWidth) * 2 - 1;
+  ndc.y = -(clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  return raycaster.ray.intersectPlane(flat, hit) ? hit : null;
+}
+
+// Le survol maintient une force sous le curseur, le clic délivre la même forme
+// en une seule impulsion.
+function reach(x, y, amount, impulse) {
+  const spread = 1 / (CLOTH.hoverRadius * CLOTH.hoverRadius);
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const body = particles[j][i];
+      if (body.mass === 0) continue;
+      const dx = body.position.x - x;
+      const dy = body.position.y - y;
+      const falloff = Math.exp(-(dx * dx + dy * dy) * spread);
+      if (falloff < 0.01) continue;
+      push.set(0, 0, amount * falloff);
+      if (impulse) body.applyImpulse(push, centre);
+      else body.applyForce(push, centre);
+    }
+  }
+}
+
+// Le curseur est écouté sur la fenêtre : le texte passe par-dessus le fond,
+// et la couverture doit répondre partout, pas seulement dans les vides.
+window.addEventListener("pointermove", (e) => {
+  const point = sheetPoint(e.clientX, e.clientY);
+  if (!point) return;
+  pointerX = point.x;
+  pointerY = point.y;
+  hovering = true;
+});
+
+window.addEventListener("pointerdown", (e) => {
+  const point = sheetPoint(e.clientX, e.clientY);
+  if (!point) return;
+  pointerX = point.x;
+  pointerY = point.y;
+  hovering = true;
+  reach(point.x, point.y, CLOTH.tapImpulse, true);
+});
+
+window.addEventListener("pointerleave", () => { hovering = false; });
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- Boucle --------------------------------------------------------------
+const positions = geometry.attributes.position;
+const clock = new THREE.Clock();
+let elapsed = 0;
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
+
+  if (!reduced) {
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const body = particles[j][i];
+        if (body.mass === 0) continue;
+        const gust = Math.sin(body.position.x * 1.6 + elapsed * 0.9) *
+                     Math.cos(body.position.y * 1.2 - elapsed * 0.6);
+        push.set(0, 0, CLOTH.breeze * gust);
+        body.applyForce(push, centre);
+      }
+    }
+  }
+
+  if (hovering) reach(pointerX, pointerY, CLOTH.hoverForce, false);
+  world.step(1 / 60, dt, 3);
+
+  // PlaneGeometry range ses sommets rangée par rangée depuis le coin haut
+  // gauche, exactement comme les particules ont été construites.
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const p = particles[j][i].position;
+      positions.setXYZ(j * N + i, p.x, p.y, p.z);
+    }
+  }
+  positions.needsUpdate = true;
+  geometry.computeVertexNormals();
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+frame();
+</script>

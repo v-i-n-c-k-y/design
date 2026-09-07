@@ -9,6 +9,7 @@ Trois effets de pixelisation, du plus simple au plus construit.
 | `boats/` | `fleet.py` | Pavage par croissance, couleurs de la photo |
 | `cloth/` | `index.html` | Couverture de survie en mylar, WebGL interactif |
 | `cloth/` | `specimens.html` | Planche d'essais : six films aux raideurs et iridescences differentes |
+| `cloth/` | `onveutvivre.html` | Etude de page de garde sur fond de couverture |
 
 `ressources/` porte l'image de test et le SVG dont sont tirees les encres du
 degrade. Les rendus produits par les scripts ne sont pas versionnes.
@@ -335,3 +336,26 @@ l'endroit ou chaque film se trouve.
 Les deux pages sont autonomes et se dupliquent quelques fonctions -- la piece
 reflechie, les cartes de relief. C'est le prix pour que chaque fichier s'ouvre
 seul dans un navigateur, sans serveur ni module a resoudre.
+
+## Etude de page de garde
+
+`cloth/onveutvivre.html` essaie la couverture comme fond d'une page de garde,
+pour la campagne On veut vivre. Le rapprochement n'est pas decoratif : la
+couverture de survie est l'objet qu'on tend aux gens sortis d'une canicule ou
+d'un incendie, ce dont la campagne parle exactement.
+
+Adapter les couleurs, pour un miroir, ne veut pas dire teinter la matiere mais
+repeindre ce qu'elle reflete. Le ciel de montagne cede donc la place a un ciel
+de canicule : aucun bleu, un zenith ocre, un horizon blanc chauffe, un sol
+calcine, et un soleil que la brume etale sur trente-huit degres au lieu du
+disque net d'une belle journee. La reflectance du film suit, du cuivre chaud
+plutot que l'or froid.
+
+Un voile en deux degrades assoit le texte sur un champ sombre en bas a gauche
+tout en laissant le film respirer en haut a droite. Le compte a rebours vers le
+26 septembre est calcule, pas ecrit en dur.
+
+La page porte une etiquette *etude de mise en page* et n'est pas publiee en
+ligne : elle emprunte le nom, le mot d'ordre et les chiffres d'une campagne
+reelle, ce qui en fait une maquette de travail et non une page a diffuser. Les
+chiffres sont un releve date, pas un compteur.
