@@ -8,6 +8,7 @@ Trois effets de pixelisation, du plus simple au plus construit.
 | `boats/` | `boat.py` | Pavage regulier en tuiles "bateau", duotone risograph |
 | `boats/` | `fleet.py` | Pavage par croissance, couleurs de la photo |
 | `cloth/` | `index.html` | Couverture de survie en mylar, WebGL interactif |
+| `cloth/` | `specimens.html` | Planche d'essais : six films aux raideurs et iridescences differentes |
 
 `ressources/` porte l'image de test et le SVG dont sont tirees les encres du
 degrade. Les rendus produits par les scripts ne sont pas versionnes.
@@ -291,3 +292,28 @@ grille, masse, gravite, amortissement, force du survol, impulsion du clic, et
 le relief residuel. Le releve affiche des valeurs reelles : le point de contact
 en centimetres sur un panneau de 210 x 160 cm, et la fleche mesuree sur la
 simulation.
+
+## Planche d'essais
+
+`cloth/specimens.html` met six fois le meme film cote a cote, dans une matrice :
+en colonnes trois raideurs en flexion (8, 60, 400 N), en lignes deux niveaux
+d'iridescence (0,15 et 0,85). Les six partent du meme pli initial et subissent
+la meme brise, de sorte que ce qui les separe est bien le seul parametre que
+l'axe annonce. La fleche affichee sous chaque tuile est mesuree sur la
+simulation : la colonne souple monte a plusieurs fois la valeur de la colonne
+raide, sans qu'on ait a y toucher.
+
+Les six sont rendus dans **un seul contexte WebGL**. Les navigateurs en limitent
+le nombre bien en dessous de ce qu'exigerait une grille de canvas separes, donc
+la page tient un canvas unique en position fixe et dessine chaque echantillon
+dans le rectangle de sa tuile, au ciseau. Les rectangles sont relus a chaque
+image, ce qui fait suivre le defilement sans code supplementaire.
+
+Une scene unique porte les six films, espaces de quatorze unites : chaque camera
+ne voit que le sien, les autres tombent hors du champ. Les lumieres sont
+directionnelles, donc une seule installation eclaire tout le monde quel que soit
+l'endroit ou chaque film se trouve.
+
+Les deux pages sont autonomes et se dupliquent quelques fonctions -- la piece
+reflechie, les cartes de relief. C'est le prix pour que chaque fichier s'ouvre
+seul dans un navigateur, sans serveur ni module a resoudre.

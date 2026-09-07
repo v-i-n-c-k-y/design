@@ -1,0 +1,698 @@
+<title>Planche d'essais mylar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  /* Same committed dark world as the single specimen: aluminised film only
+     reads as metal against a near-black ground, so no light theme. */
+  :root {
+    --void: #0a0908;
+    --slate: #17140f;
+    --foil: #e6e0d5;
+    --gold: #f0c069;
+    --ember: #ff6b35;
+    --mute: #857b6d;
+    --hair: rgba(230, 224, 213, 0.16);
+    --pad: clamp(16px, 2.4vw, 32px);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--void);
+    color: var(--foil);
+    font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+
+  /* One context for every specimen: each is drawn into its cell's rectangle
+     with the scissor, since browsers cap the number of live WebGL contexts
+     well below what a grid of separate canvases would need. */
+  #stage {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 0;
+  }
+
+  .sheet {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    padding: var(--pad);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: clamp(14px, 2vw, 26px);
+  }
+
+  header { display: grid; gap: 8px; max-width: 66ch; }
+
+  .masthead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ember);
+    margin: 0;
+  }
+
+  h1 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700;
+    font-size: clamp(20px, 2.5vw, 30px);
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .lede {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--mute);
+  }
+  .lede b { color: var(--foil); font-weight: 500; }
+
+  /* Matrix: stiffness across, iridescence down. The axes are the content, so
+     they get real headers rather than a caption under each tile. */
+  .matrix {
+    display: grid;
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto repeat(2, minmax(150px, 1fr));
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .axis {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mute);
+    display: flex;
+    align-items: center;
+  }
+  .axis.col { justify-content: center; padding-bottom: 2px; }
+  .axis.row {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    justify-content: center;
+    padding-right: 2px;
+  }
+  .axis b { color: var(--gold); font-weight: 500; }
+
+  .corner {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--mute);
+    display: grid;
+    place-content: center;
+    text-align: center;
+    opacity: 0.6;
+  }
+
+  .cell {
+    position: relative;
+    border: 1px solid var(--hair);
+    cursor: crosshair;
+    min-height: 0;
+    display: flex;
+    align-items: flex-end;
+    transition: border-color 220ms ease;
+  }
+  .cell:hover, .cell:focus-visible { border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
+  .cell:focus-visible { outline: 2px solid var(--ember); outline-offset: -3px; }
+
+  .tag {
+    margin: 0;
+    padding: 8px 10px;
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 10px;
+    background: linear-gradient(to top, color-mix(in srgb, var(--void) 82%, transparent), transparent);
+    width: 100%;
+  }
+  .tag span { display: flex; gap: 6px; }
+  .tag dt { color: var(--mute); margin: 0; }
+  .tag dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .tag .flex { color: var(--gold); }
+
+  footer {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: var(--mute);
+    margin: 0;
+    padding-top: 2px;
+  }
+
+  /* Stacked on narrow screens, where a matrix cannot hold its shape. Each
+     tile already carries its own values, so nothing is lost with the headers. */
+  @media (max-width: 760px) {
+    .matrix {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
+    }
+    .axis, .corner { display: none; }
+    .cell { min-height: 210px; }
+  }
+
+  .fallback {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    display: none;
+    place-content: center;
+    padding: 32px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--mute);
+    background: var(--void);
+  }
+  .fallback.on { display: grid; }
+</style>
+
+<canvas id="stage"></canvas>
+
+<div class="fallback" id="fallback">
+  <p id="fallbackText">Cette planche a besoin de WebGL.<br>Ouvrez-la dans un navigateur récent, accélération matérielle activée.</p>
+</div>
+
+<div class="sheet">
+  <header>
+    <div class="masthead">
+      <p class="eyebrow">Couverture de survie</p>
+      <h1>Planche d'essais mylar</h1>
+    </div>
+    <p class="lede">
+      Six fois le même film de 12 µm, sous une brise identique. En colonnes, la
+      <b>raideur en flexion</b> des liens qui enjambent chaque particule : c'est
+      elle qui sépare une soie qui coule d'un film qui tient ses plis. En lignes,
+      l'<b>iridescence</b> du matériau. Survolez pour soulever une feuille,
+      cliquez pour la faire claquer.
+    </p>
+  </header>
+
+  <div class="matrix" id="matrix">
+    <div class="corner">flexion&nbsp;→<br>iridescence&nbsp;↓</div>
+    <p class="axis col">Souple · <b>8&nbsp;N</b></p>
+    <p class="axis col">Standard · <b>60&nbsp;N</b></p>
+    <p class="axis col">Raide · <b>400&nbsp;N</b></p>
+
+    <p class="axis row">Sobre · <b>0,15</b></p>
+    <div class="cell" tabindex="0" data-bend="8" data-irid="0.15"></div>
+    <div class="cell" tabindex="0" data-bend="60" data-irid="0.15"></div>
+    <div class="cell" tabindex="0" data-bend="400" data-irid="0.15"></div>
+
+    <p class="axis row">Chatoyante · <b>0,85</b></p>
+    <div class="cell" tabindex="0" data-bend="8" data-irid="0.85"></div>
+    <div class="cell" tabindex="0" data-bend="60" data-irid="0.85"></div>
+    <div class="cell" tabindex="0" data-bend="400" data-irid="0.85"></div>
+
+    <footer>
+      La flèche est mesurée sur la simulation : la déflexion maximale du film,
+      ramenée aux millimètres d'un panneau de 210 × 160 cm.
+    </footer>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script type="module">
+"use strict";
+
+const canvas = document.getElementById("stage");
+const fallback = document.getElementById("fallback");
+const fallbackText = document.getElementById("fallbackText");
+
+function giveUp(message) {
+  fallbackText.innerHTML = message;
+  fallback.classList.add("on");
+}
+
+let CANNON;
+try {
+  CANNON = await import("https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js");
+} catch (err) {
+  giveUp("Le moteur physique n'a pas pu être chargé.<br>Vérifiez votre connexion et rechargez.");
+  throw err;
+}
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+} catch (err) {
+  giveUp("Cette planche a besoin de WebGL.<br>Ouvrez-la dans un navigateur récent, accélération matérielle activée.");
+  throw err;
+}
+
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const SHEET_W = 3.28;
+const SHEET_H = 2.50;
+const MM_PER_UNIT = 2100 / SHEET_W;
+const FOV = 40;
+
+// Smaller grid than the single specimen: six simulations share one frame
+// budget, and each one only fills a tile.
+const CLOTH = {
+  grid: 16,
+  mass: 0.05,
+  gravity: -1.6,
+  damping: 0.52,
+  hoverForce: 3.4,
+  hoverRadius: 0.62,
+  tapImpulse: 0.85,
+  crinkle: 0.20,
+  breeze: 0.42   // souffle constant, sans quoi la raideur ne se verrait pas
+};
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.02;
+
+// One scene holds every specimen, spaced far enough apart that each camera
+// frames its own and the rest fall outside the frustum.
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0908);
+// Le nettoyage plein cadre efface aussi les gouttières entre les tuiles, où
+// aucune scène n'est rendue
+renderer.setClearColor(0x0a0908, 1);
+const SPACING = 14;
+
+// --- Environment ---------------------------------------------------------
+// Aluminised film is almost a pure mirror: what you see is the room. It is
+// painted here as an equirectangular canvas — a warm key, a wide amber band,
+// a deep gold spill, and one cool bounce without which the gold flattens into
+// orange — then convolved by PMREM so roughness reads correctly.
+function paintRoom() {
+  const c = document.createElement("canvas");
+  c.width = 1024;
+  c.height = 512;
+  const g = c.getContext("2d");
+
+  const sky = g.createLinearGradient(0, 0, 0, 512);
+  sky.addColorStop(0.00, "#4a3f34");
+  sky.addColorStop(0.38, "#1a1510");
+  sky.addColorStop(0.72, "#0b0a09");
+  sky.addColorStop(1.00, "#050505");
+  g.fillStyle = sky;
+  g.fillRect(0, 0, 1024, 512);
+
+  const glow = (x, y, rx, ry, color, alpha) => {
+    g.save();
+    g.globalAlpha = alpha;
+    g.translate(x, y);
+    g.scale(rx / ry, 1);
+    const rad = g.createRadialGradient(0, 0, 0, 0, 0, ry);
+    rad.addColorStop(0, color);
+    rad.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = rad;
+    g.fillRect(-ry * 3, -ry, ry * 6, ry * 2);
+    g.restore();
+  };
+
+  glow(215, 118, 300, 104, "#fff3dc", 1.00);
+  glow(655, 146, 275, 96, "#ffc266", 0.95);
+  glow(880, 296, 200, 122, "#ff9a34", 0.55);
+  glow(430, 372, 330, 92, "#4d6fa8", 0.22);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+const roomTex = paintRoom();
+scene.environment = pmrem.fromEquirectangular(roomTex).texture;
+roomTex.dispose();
+pmrem.dispose();
+
+scene.add(new THREE.AmbientLight(0x3a3026, 0.55));
+// Directional lights carry a direction, not a place, so one set lights every
+// specimen wherever it sits.
+const key = new THREE.DirectionalLight(0xfff0d2, 2.3);
+key.position.set(-2.2, 2.6, 3.4);
+scene.add(key);
+const warm = new THREE.DirectionalLight(0xffa63c, 1.9);
+warm.position.set(2.8, -0.8, 2.2);
+scene.add(warm);
+const rim = new THREE.DirectionalLight(0x6f92d0, 0.55);
+rim.position.set(0.4, -2.6, -1.6);
+scene.add(rim);
+
+// --- Surface detail ------------------------------------------------------
+// The simulation carries the large folds; the fine creasing left by folding
+// the film into its pouch goes into a normal map, shared by every specimen.
+function value(x, y, seed) {
+  let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+
+function smooth(x, y, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf);
+  const v = yf * yf * (3 - 2 * yf);
+  const a = value(xi, yi, seed), b = value(xi + 1, yi, seed);
+  const c = value(xi, yi + 1, seed), d = value(xi + 1, yi + 1, seed);
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+
+// Ridged noise: folding about zero turns smooth hills into sharp spines.
+function creases(x, y) {
+  let sum = 0, amp = 0.5, freq = 1;
+  for (let o = 0; o < 4; o++) {
+    const n = smooth(x * freq, y * freq, o) * 2 - 1;
+    sum += amp * Math.pow(1 - Math.abs(n), 3);
+    freq *= 2.07;
+    amp *= 0.55;
+  }
+  return sum;
+}
+
+function paintCreases(size, cells, strength) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const img = g.createImageData(size, size);
+  const step = cells / size;
+  const h = (i, j) => creases(i * step, j * step);
+
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const dx = (h(i + 1, j) - h(i - 1, j)) * strength;
+      const dy = (h(i, j + 1) - h(i, j - 1)) * strength;
+      const len = Math.hypot(dx, dy, 1);
+      const o = (j * size + i) * 4;
+      img.data[o] = ((-dx / len) * 0.5 + 0.5) * 255;
+      img.data[o + 1] = ((-dy / len) * 0.5 + 0.5) * 255;
+      img.data[o + 2] = ((1 / len) * 0.5 + 0.5) * 255;
+      img.data[o + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 2.3);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// Mylar's shimmer comes from the film thickness varying across the sheet; a
+// constant thickness would give one flat tint.
+function paintThickness() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  g.fillStyle = "#5a5a5a";
+  g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 26; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    const r = 26 + Math.random() * 74;
+    const rad = g.createRadialGradient(x, y, 0, x, y, r);
+    const tone = Math.random() > 0.5 ? "255,255,255" : "0,0,0";
+    rad.addColorStop(0, `rgba(${tone},0.5)`);
+    rad.addColorStop(1, `rgba(${tone},0)`);
+    g.fillStyle = rad;
+    g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  return tex;
+}
+
+const creaseMap = paintCreases(256, 7, 1.4);
+const thicknessMap = paintThickness();
+
+// --- Specimens -----------------------------------------------------------
+const N = CLOTH.grid;
+const stepX = SHEET_W / (N - 1);
+const stepY = SHEET_H / (N - 1);
+const diagonal = Math.hypot(stepX, stepY);
+
+class NoContacts extends CANNON.Broadphase {
+  collisionPairs() {}
+}
+
+function buildSpecimen(cell, index) {
+  const bend = Number(cell.dataset.bend);
+  const iridescence = Number(cell.dataset.irid);
+
+  const geometry = new THREE.PlaneGeometry(SHEET_W, SHEET_H, N - 1, N - 1);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0xf2c069,          // réflectance de l'or
+    metalness: 1.0,
+    roughness: 0.22,
+    side: THREE.DoubleSide,
+    envMapIntensity: 1.9,
+    iridescence,
+    iridescenceIOR: 1.34,
+    iridescenceThicknessRange: [190, 470],
+    iridescenceThicknessMap: thicknessMap,
+    normalMap: creaseMap,
+    normalScale: new THREE.Vector2(CLOTH.crinkle, CLOTH.crinkle),
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.22
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.x = index * SPACING;
+  scene.add(mesh);
+
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 60);
+  camera.position.set(index * SPACING, -0.1, 4);
+
+  const world = new CANNON.World({ gravity: new CANNON.Vec3(0, CLOTH.gravity, 0) });
+  world.solver.iterations = 8;
+  world.allowSleep = false;
+  // Nothing collides: the film is driven by its constraints and by the forces
+  // the pointer applies, so the broadphase would compare bodies for nothing.
+  world.broadphase = new NoContacts();
+
+  const particles = [];
+  for (let j = 0; j < N; j++) {
+    const row = [];
+    for (let i = 0; i < N; i++) {
+      const pinned = (i === 0 || i === N - 1) && (j === 0 || j === N - 1);
+      row.push(new CANNON.Body({
+        mass: pinned ? 0 : CLOTH.mass,
+        shape: new CANNON.Particle(),
+        linearDamping: CLOTH.damping,
+        position: new CANNON.Vec3(
+          -SHEET_W / 2 + i * stepX,
+          SHEET_H / 2 - j * stepY,
+          // Every specimen buckles from the same seed, so what differs between
+          // tiles is the stiffness and nothing else.
+          pinned ? 0 : (value(i, j, 7) - 0.5) * 0.012
+        )
+      }));
+      world.addBody(row[i]);
+    }
+    particles.push(row);
+  }
+
+  const link = (a, b, distance, maxForce) =>
+    world.addConstraint(new CANNON.DistanceConstraint(a, b, distance, maxForce));
+
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      // Structure et cisaillement, rigides : le film ne s'étire pas
+      if (i < N - 1) link(particles[j][i], particles[j][i + 1], stepX);
+      if (j < N - 1) link(particles[j][i], particles[j + 1][i], stepY);
+      if (i < N - 1 && j < N - 1) {
+        link(particles[j][i], particles[j + 1][i + 1], diagonal);
+        link(particles[j][i + 1], particles[j + 1][i], diagonal);
+      }
+      // Flexion : le seul paramètre qui change d'une colonne à l'autre
+      if (i < N - 2) link(particles[j][i], particles[j][i + 2], stepX * 2, bend);
+      if (j < N - 2) link(particles[j][i], particles[j + 2][i], stepY * 2, bend);
+    }
+  }
+
+  const tag = document.createElement("dl");
+  tag.className = "tag";
+  tag.innerHTML =
+    '<span><dt>Flexion</dt><dd>' + bend + ' N</dd></span>' +
+    '<span><dt>Iridescence</dt><dd>' + String(iridescence).replace(".", ",") + '</dd></span>' +
+    '<span><dt>Flèche</dt><dd class="flex">0 mm</dd></span>';
+  cell.appendChild(tag);
+
+  return {
+    cell, mesh, geometry, camera, world, particles, bend,
+    readout: tag.querySelector(".flex"),
+    positions: geometry.attributes.position,
+    offset: index * SPACING,
+    hovering: false,
+    pointerX: 0,
+    pointerY: 0,
+    settle: 0
+  };
+}
+
+const specimens = [...document.querySelectorAll(".cell")].map(buildSpecimen);
+
+// --- Interaction ---------------------------------------------------------
+const raycaster = new THREE.Raycaster();
+const flat = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const ndc = new THREE.Vector2();
+const hit = new THREE.Vector3();
+const push = new CANNON.Vec3(0, 0, 0);
+// Passed explicitly so cannon-es doesn't allocate a fresh origin every call
+const centre = new CANNON.Vec3(0, 0, 0);
+
+// The pointer is read against the tile it is over, not the window, so a ray
+// through the tile's own camera lands in that specimen's sheet coordinates.
+function sheetPoint(spec, event) {
+  const rect = spec.cell.getBoundingClientRect();
+  ndc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  ndc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, spec.camera);
+  if (!raycaster.ray.intersectPlane(flat, hit)) return null;
+  hit.x -= spec.offset;
+  return hit;
+}
+
+// Hover holds a steady force under the cursor; a tap delivers the same shape
+// as a single impulse.
+function reach(spec, x, y, amount, impulse) {
+  const spread = 1 / (CLOTH.hoverRadius * CLOTH.hoverRadius);
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const body = spec.particles[j][i];
+      if (body.mass === 0) continue;
+      const dx = body.position.x - x;
+      const dy = body.position.y - y;
+      const falloff = Math.exp(-(dx * dx + dy * dy) * spread);
+      if (falloff < 0.01) continue;
+      push.set(0, 0, amount * falloff);
+      if (impulse) body.applyImpulse(push, centre);
+      else body.applyForce(push, centre);
+    }
+  }
+}
+
+for (const spec of specimens) {
+  spec.cell.addEventListener("pointermove", (e) => {
+    const point = sheetPoint(spec, e);
+    if (!point) return;
+    spec.pointerX = point.x;
+    spec.pointerY = point.y;
+    spec.hovering = true;
+  });
+
+  spec.cell.addEventListener("pointerdown", (e) => {
+    const point = sheetPoint(spec, e);
+    if (!point) return;
+    spec.pointerX = point.x;
+    spec.pointerY = point.y;
+    spec.hovering = true;
+    reach(spec, point.x, point.y, CLOTH.tapImpulse, true);
+  });
+
+  spec.cell.addEventListener("pointerleave", () => {
+    spec.hovering = false;
+  });
+
+  spec.cell.addEventListener("keydown", (e) => {
+    if (e.key !== " " && e.key !== "Enter") return;
+    e.preventDefault();
+    reach(spec, spec.pointerX, spec.pointerY, CLOTH.tapImpulse, true);
+  });
+}
+
+function resize() {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+window.addEventListener("resize", resize);
+
+// --- Loop ----------------------------------------------------------------
+const clock = new THREE.Clock();
+let elapsed = 0;
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
+
+  for (const spec of specimens) {
+    // The same breeze on every tile: without it the stiffness would only show
+    // when touched, and the point of the board is to read it at a glance.
+    if (!reduced) {
+      const wave = Math.sin(elapsed * 1.1);
+      for (let j = 0; j < N; j++) {
+        for (let i = 0; i < N; i++) {
+          const body = spec.particles[j][i];
+          if (body.mass === 0) continue;
+          const gust = Math.sin(body.position.x * 1.7 + elapsed * 1.3) *
+                       Math.cos(body.position.y * 1.3 - elapsed * 0.8);
+          push.set(0, 0, CLOTH.breeze * gust * (0.6 + 0.4 * wave));
+          body.applyForce(push, centre);
+        }
+      }
+    }
+
+    if (spec.hovering) reach(spec, spec.pointerX, spec.pointerY, CLOTH.hoverForce, false);
+    spec.world.step(1 / 60, dt, 3);
+
+    // PlaneGeometry lays its vertices out row by row from the top left, which
+    // is exactly how the particles were built, so the copy is a straight walk.
+    let deepest = 0;
+    for (let j = 0; j < N; j++) {
+      for (let i = 0; i < N; i++) {
+        const p = spec.particles[j][i].position;
+        spec.positions.setXYZ(j * N + i, p.x, p.y, p.z);
+        if (Math.abs(p.z) > deepest) deepest = Math.abs(p.z);
+      }
+    }
+    spec.positions.needsUpdate = true;
+    spec.geometry.computeVertexNormals();
+
+    spec.settle += (deepest * MM_PER_UNIT - spec.settle) * Math.min(1, dt * 4);
+    spec.readout.textContent = Math.round(spec.settle) + " mm";
+  }
+
+  renderer.setScissorTest(false);
+  renderer.clear();
+  renderer.setScissorTest(true);
+
+  const vh = window.innerHeight;
+  for (const spec of specimens) {
+    const rect = spec.cell.getBoundingClientRect();
+    if (rect.bottom <= 0 || rect.top >= vh || rect.width < 2 || rect.height < 2) continue;
+
+    renderer.setViewport(rect.left, vh - rect.bottom, rect.width, rect.height);
+    renderer.setScissor(rect.left, vh - rect.bottom, rect.width, rect.height);
+
+    // Pull the camera back far enough that the sheet fits whatever shape the
+    // tile happens to be — the grid gives it a very different aspect on a
+    // phone than on a wide screen.
+    const aspect = rect.width / rect.height;
+    const half = Math.tan((FOV * Math.PI) / 360);
+    spec.camera.aspect = aspect;
+    spec.camera.position.z = Math.max(SHEET_H / 2 / half, SHEET_W / 2 / half / aspect) * 1.16;
+    spec.camera.updateProjectionMatrix();
+    spec.camera.lookAt(spec.offset, 0, 0);
+
+    renderer.render(scene, spec.camera);
+  }
+  renderer.setScissorTest(false);
+
+  requestAnimationFrame(frame);
+}
+
+frame();
+</script>
