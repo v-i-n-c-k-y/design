@@ -377,9 +377,26 @@ renderer.toneMappingExposure = 0.66;
 renderer.setClearColor(0x0d0906, 1);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 60);
-camera.position.set(0, -0.12, 3.7);
-camera.lookAt(0, 0, 0);
+const CAM_FOV = 40;
+const CAM_DIST = 3.7;
+const camera = new THREE.PerspectiveCamera(CAM_FOV, window.innerWidth / window.innerHeight, 0.1, 60);
+
+// Cadrage : la couverture est posée de façon que son coin haut droit tombe
+// exactement sur celui de la fenêtre. C'est la caméra qu'on décale, pas la
+// feuille : sa physique et ses coins tenus ne changent pas, et le pointeur
+// continue de viser juste puisque le rayon part de cette même caméra. Le
+// décalage dépend du format de la fenêtre, donc il se recalcule au
+// redimensionnement.
+function frameSheet() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  const halfH = Math.tan((CAM_FOV * Math.PI) / 360) * CAM_DIST;
+  const x = SHEET_W / 2 - halfH * camera.aspect;
+  const y = SHEET_H / 2 - halfH;
+  camera.position.set(x, y, CAM_DIST);
+  camera.lookAt(x, y, 0);
+  camera.updateProjectionMatrix();
+}
+frameSheet();
 
 // --- Le ciel de canicule -------------------------------------------------
 // Le film est un miroir : ce qu'on voit est le ciel, pas la matière. Adapter
@@ -568,8 +585,7 @@ const particles = [];
 for (let j = 0; j < N; j++) {
   const row = [];
   for (let i = 0; i < N; i++) {
-    // Un seul point d'attache, le coin haut droit
-    const pinned = i === N - 1 && j === 0;
+    const pinned = (i === 0 || i === N - 1) && (j === 0 || j === N - 1);
     const body = new CANNON.Body({
       mass: pinned ? 0 : CLOTH.mass,
       shape: new CANNON.Particle(),
@@ -667,8 +683,7 @@ window.addEventListener("pointerdown", (e) => {
 window.addEventListener("pointerleave", () => { hovering = false; });
 
 window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  frameSheet();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
