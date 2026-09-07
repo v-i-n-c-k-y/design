@@ -133,6 +133,36 @@
 
   #impacts { color: var(--ember); }
 
+  /* Le seul élément du HUD qui prend le pointeur */
+  .env {
+    pointer-events: auto;
+    display: inline-flex;
+    border: 1px solid var(--hair);
+    background: color-mix(in srgb, var(--slate) 72%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .env button {
+    appearance: none;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mute);
+    padding: 7px 13px;
+    cursor: pointer;
+    transition: color 200ms ease, background-color 200ms ease;
+  }
+  .env button + button { border-left: 1px solid var(--hair); }
+  .env button:hover { color: var(--foil); }
+  .env button[aria-pressed="true"] {
+    color: var(--void);
+    background: var(--gold);
+  }
+  .env button:focus-visible { outline: 2px solid var(--ember); outline-offset: -2px; }
+
   @media (max-width: 620px) {
     .foot { flex-direction: column; align-items: stretch; }
     .panel { min-width: 0; }
@@ -166,6 +196,10 @@
   <header class="masthead">
     <p class="eyebrow">Couverture de survie</p>
     <h1 class="title">Mylar 12&nbsp;microns</h1>
+    <div class="env" role="group" aria-label="Environnement">
+      <button type="button" data-env="field" aria-pressed="true">Plein air</button>
+      <button type="button" data-env="shelter" aria-pressed="false">Abri</button>
+    </div>
   </header>
 
   <div></div>
@@ -190,6 +224,7 @@
         <div class="row"><dt>Contact Y</dt><dd id="py">—</dd></div>
         <div class="row"><dt>Flèche</dt><dd id="amp">0 mm</dd></div>
         <div class="row"><dt>Impacts</dt><dd id="impacts">0</dd></div>
+        <div class="row"><dt>Lumière</dt><dd id="light">soleil 19°</dd></div>
       </dl>
     </section>
 
@@ -254,21 +289,99 @@ const CLOTH = {
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.02;
+let exposure = 1.02;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0908);
 
 const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 60);
 const CAM_Y = -0.18;
 camera.position.set(0, CAM_Y, 3.6);
 camera.lookAt(0, 0, 0);
 
-// --- Environment ---------------------------------------------------------
-// Aluminised film is almost a pure mirror: what you see is the room, not the
-// material. The room is painted here as an equirectangular canvas — a cold key
-// band, a warm amber band for the gold face, a rescue-orange spill — then
-// convolved by PMREM so roughness reads correctly.
+// --- Environments -------------------------------------------------------
+// The film is a mirror: what you see is the surroundings, not the material.
+// Changing where the blanket is means repainting the world it reflects.
+
+// Sun direction, shared by the sky and by the directional light that gives the
+// sharp glint. If the two disagree, the highlight lands in the wrong fold.
+const SUN_ELEVATION = 19;
+// Le soleil est derrière la caméra : c'est lui qui éclaire la face tournée
+// vers nous, et c'est son reflet qu'on voit dans le film plutôt que le disque
+const SUN_AZIMUTH = 52;
+const sunDir = new THREE.Vector3();
+{
+  const el = THREE.MathUtils.degToRad(SUN_ELEVATION);
+  const az = THREE.MathUtils.degToRad(SUN_AZIMUTH);
+  sunDir.set(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
+}
+
+// Outdoors, as a float texture rather than a canvas. A canvas is capped at
+// 255, so a sun painted on one can be no brighter than the sky around it and
+// throws no glint at all; in floating point it sits two hundred times above
+// the sky, which is what makes metal sparkle out in the open.
+function paintSky() {
+  const W = 1024;
+  const H = 512;
+  // Demi-flottant plutôt que flottant simple : le filtrage linéaire des
+  // textures 32 bits demande une extension, celui des 16 bits est natif
+  const data = new Uint16Array(W * H * 4);
+  const half = THREE.DataUtils.toHalfFloat;
+
+  const zenith = [0.10, 0.22, 0.48];
+  const skyline = [0.62, 0.72, 0.86];
+  const snow = [0.46, 0.49, 0.55];   // névé, la couverture est un objet de montagne
+  const sunColor = [1.0, 0.94, 0.84];
+  const core = Math.cos(THREE.MathUtils.degToRad(1.4));
+  const halo = Math.cos(THREE.MathUtils.degToRad(16));
+
+  for (let y = 0; y < H; y++) {
+    // three échantillonne l'équirectangulaire en v = asin(dir.y) / PI + 0.5,
+    // donc v = 1 pointe au zénith et la dernière rangée du tableau est le ciel
+    const v = (y + 0.5) / H;
+    const elev = (v - 0.5) * Math.PI;
+    const up = Math.sin(elev);
+    const flat = Math.cos(elev);
+
+    const base = [0, 0, 0];
+    if (up >= 0) {
+      // Le ciel pâlit vers l'horizon : c'est cette bande claire, et non une
+      // lampe, qui éclaire un objet en extérieur
+      const t = Math.pow(up, 0.42);
+      for (let c = 0; c < 3; c++) base[c] = (skyline[c] * (1 - t) + zenith[c] * t) * 2.6;
+    } else {
+      const t = Math.min(1, -up * 2.2);
+      for (let c = 0; c < 3; c++) base[c] = snow[c] * (1 - t * 0.45) * 1.15;
+    }
+
+    for (let x = 0; x < W; x++) {
+      const phi = ((x + 0.5) / W - 0.5) * Math.PI * 2;
+      const dx = Math.cos(phi) * flat;
+      const dz = Math.sin(phi) * flat;
+      const toSun = dx * sunDir.x + up * sunDir.y + dz * sunDir.z;
+
+      let glow = 0;
+      if (toSun > halo) {
+        const t = (toSun - halo) / (1 - halo);
+        glow = t * t * 5;
+        if (toSun > core) glow += 140;
+      }
+
+      const o = (y * W + x) * 4;
+      for (let c = 0; c < 3; c++) data[o + c] = half(base[c] + sunColor[c] * glow);
+      data[o + 3] = half(1);
+    }
+  }
+
+  const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// Indoors: a dark room with a few lamps, painted on a canvas because nothing
+// in it needs to go above white.
 function paintRoom() {
   const c = document.createElement("canvas");
   c.width = 1024;
@@ -310,22 +423,56 @@ function paintRoom() {
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 pmrem.compileEquirectangularShader();
+
+const skyTex = paintSky();
 const roomTex = paintRoom();
-scene.environment = pmrem.fromEquirectangular(roomTex).texture;
+const skyEnv = pmrem.fromEquirectangular(skyTex).texture;
+const roomEnv = pmrem.fromEquirectangular(roomTex).texture;
 roomTex.dispose();
 pmrem.dispose();
 
-scene.add(new THREE.AmbientLight(0x3a3026, 0.55));
+// --- Light rigs ----------------------------------------------------------
+// Outdoors: one sun, and the sky itself as fill. Indoors: the three-lamp rig
+// that suited a room. Only one group is ever visible.
+const outdoor = new THREE.Group();
+const sun = new THREE.DirectionalLight(0xfff3e0, 3.4);
+sun.position.copy(sunDir).multiplyScalar(10);
+outdoor.add(sun);
+outdoor.add(new THREE.HemisphereLight(0xa8c6f2, 0x7a7368, 1.1));
+scene.add(outdoor);
+
+const indoor = new THREE.Group();
+indoor.add(new THREE.AmbientLight(0x3a3026, 0.55));
 const key = new THREE.DirectionalLight(0xfff0d2, 2.3);
 key.position.set(-2.2, 2.6, 3.4);
-scene.add(key);
+indoor.add(key);
 const warm = new THREE.DirectionalLight(0xffa63c, 1.9);
 warm.position.set(2.8, -0.8, 2.2);
-scene.add(warm);
+indoor.add(warm);
 // A single cool rim keeps the folds separated; without it the gold flattens
 const rim = new THREE.DirectionalLight(0x6f92d0, 0.55);
 rim.position.set(0.4, -2.6, -1.6);
-scene.add(rim);
+indoor.add(rim);
+scene.add(indoor);
+
+const WORLDS = {
+  field: {
+    environment: skyEnv,
+    background: skyTex,
+    exposure: 0.62,      // le ciel est cent fois plus lumineux qu'une lampe
+    roughness: 0.26,     // un miroir parfait sous ce ciel devient illisible
+    lights: outdoor,
+    readout: "soleil " + SUN_ELEVATION + "°"
+  },
+  shelter: {
+    environment: roomEnv,
+    background: new THREE.Color(0x0a0908),
+    exposure: 1.02,
+    roughness: 0.22,
+    lights: indoor,
+    readout: "lampes"
+  }
+};
 
 // --- Surface detail ------------------------------------------------------
 // The simulation carries the large folds. What it cannot carry is the fine
@@ -622,6 +769,28 @@ canvas.addEventListener("keydown", (e) => {
   markUsed();
 });
 
+const elLight = document.getElementById("light");
+
+function setWorld(name) {
+  const world = WORLDS[name];
+  scene.environment = world.environment;
+  scene.background = world.background;
+  exposure = world.exposure;
+  renderer.toneMappingExposure = exposure;
+  material.roughness = world.roughness;
+  outdoor.visible = world.lights === outdoor;
+  indoor.visible = world.lights === indoor;
+  elLight.textContent = world.readout;
+  for (const button of document.querySelectorAll(".env button")) {
+    button.setAttribute("aria-pressed", String(button.dataset.env === name));
+  }
+}
+
+for (const button of document.querySelectorAll(".env button")) {
+  button.addEventListener("click", () => setWorld(button.dataset.env));
+}
+setWorld("field");
+
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -655,7 +824,7 @@ function frame() {
   // Struck film springs: a brief lift in exposure reads as the flash of light
   // the real thing throws when it snaps.
   flash += (0 - flash) * Math.min(1, dt * 3.2);
-  renderer.toneMappingExposure = 1.02 + flash * 0.2;
+  renderer.toneMappingExposure = exposure + flash * exposure * 0.2;
 
   // Settle the readout so it reports a measurement, not a flicker.
   settle += (deepest * MM_PER_UNIT - settle) * Math.min(1, dt * 5);

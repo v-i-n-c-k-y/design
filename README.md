@@ -281,10 +281,28 @@ constante, `CLOTH.crinkle`.
 
 **Le materiau est metallique pur**, sans texture de couleur : pour un metal la
 teinte se regle par la reflectance, et celle-ci est celle de l'or. Ce qu'on voit
-est donc surtout le reflet de la piece, peinte a la main dans un canvas
-equirectangulaire -- une cle blanc chaud, une large bande ambree, un debord d'or
-profond, et une seule retombee froide sans laquelle l'or s'aplatit en orange --
-puis convolue par `PMREMGenerator`. Une carte d'epaisseur procedurale alimente
+est donc surtout le reflet de l'environnement, et changer d'environnement suffit
+a deplacer la couverture. La page en propose deux.
+
+*Plein air* est un ciel construit en demi-flottant plutot que peint sur un
+canvas : un canvas plafonne a 255, donc un soleil dessine dessus ne peut pas
+etre plus lumineux que le ciel autour et ne jette aucun eclat. En virgule
+flottante il le domine de deux ordres de grandeur, et c'est cela qui fait
+etinceler le metal dehors. Trois autres traits font l'exterieur : le ciel occupe
+tout l'hemisphere haut au lieu d'une lampe ponctuelle, il palit vers l'horizon,
+et surtout la ligne d'horizon coupe net entre ciel et neve -- c'est elle qu'on
+lit dans les plis d'un miroir et rien d'autre ne dit aussi vite "dehors". Le
+soleil se tient derriere la camera, si bien qu'on voit son reflet dans le film
+plutot que son disque.
+
+*Abri* garde la piece d'origine, peinte a la main dans un canvas
+equirectangulaire : une cle blanc chaud, une large bande ambree, un debord d'or
+profond, et une seule retombee froide sans laquelle l'or s'aplatit en orange.
+
+Les deux passent par `PMREMGenerator`. Basculer de l'une a l'autre echange
+l'environnement, le fond, le jeu de lumieres, l'exposition -- le ciel est cent
+fois plus lumineux qu'une lampe -- et la rugosite, car un miroir parfait sous ce
+ciel devient illisible. Une carte d'epaisseur procedurale alimente
 l'iridescence, tenue basse : trop forte, elle vire au vert et mange l'or.
 
 Tous les reglages tiennent dans l'objet `CLOTH` en tete de script : taille de la
