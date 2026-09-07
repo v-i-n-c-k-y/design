@@ -44,8 +44,7 @@
     outline-offset: -4px;
   }
 
-  /* Chrome floats over the film and never intercepts the pointer, except
-     where a control genuinely needs it. */
+  /* Chrome floats over the film and never intercepts the pointer. */
   .hud {
     position: fixed;
     inset: 0;
@@ -93,7 +92,7 @@
     display: grid;
     gap: 7px;
     font-size: 11px;
-    min-width: 218px;
+    min-width: 224px;
   }
 
   .panel h2 {
@@ -132,7 +131,6 @@
   .hint b { color: var(--silver); font-weight: 500; }
   .hint.gone { opacity: 0.32; }
 
-  /* Impact counter reads as an instrument tick, not a score. */
   #impacts { color: var(--ember); }
 
   @media (max-width: 620px) {
@@ -161,7 +159,7 @@
 <canvas id="sheet" tabindex="0" aria-label="Couverture de survie en mylar : survolez pour la soulever, cliquez pour la faire claquer"></canvas>
 
 <div class="fallback" id="fallback">
-  <p>Cette pièce a besoin de WebGL.<br>Ouvrez-la dans un navigateur récent, accélération matérielle activée.</p>
+  <p id="fallbackText">Cette pièce a besoin de WebGL.<br>Ouvrez-la dans un navigateur récent, accélération matérielle activée.</p>
 </div>
 
 <div class="hud">
@@ -190,7 +188,7 @@
       <dl>
         <div class="row"><dt>Contact X</dt><dd id="px">—</dd></div>
         <div class="row"><dt>Contact Y</dt><dd id="py">—</dd></div>
-        <div class="row"><dt>Flèche</dt><dd id="amp">0,0 mm</dd></div>
+        <div class="row"><dt>Flèche</dt><dd id="amp">0 mm</dd></div>
         <div class="row"><dt>Impacts</dt><dd id="impacts">0</dd></div>
       </dl>
     </section>
@@ -202,393 +200,465 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
-<script>
-(function () {
-  "use strict";
+<script type="module">
+"use strict";
 
-  var canvas = document.getElementById("sheet");
-  var renderer;
-  try {
-    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-  } catch (err) {
-    document.getElementById("fallback").classList.add("on");
-    canvas.style.display = "none";
+const canvas = document.getElementById("sheet");
+const fallback = document.getElementById("fallback");
+const fallbackText = document.getElementById("fallbackText");
+
+function giveUp(message) {
+  fallbackText.innerHTML = message;
+  fallback.classList.add("on");
+  canvas.style.display = "none";
+}
+
+let CANNON;
+try {
+  CANNON = await import("https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js");
+} catch (err) {
+  giveUp("Le moteur physique n'a pas pu être chargé.<br>Vérifiez votre connexion et rechargez.");
+  throw err;
+}
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+} catch (err) {
+  giveUp("Cette pièce a besoin de WebGL.<br>Ouvrez-la dans un navigateur récent, accélération matérielle activée.");
+  throw err;
+}
+
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Real sheet is 210 x 160 cm; the mesh keeps that 1.3125 ratio so the readout
+// can report genuine centimetres.
+const SHEET_W = 3.28;
+const SHEET_H = 2.50;
+const MM_PER_UNIT = 2100 / SHEET_W;
+
+// Every dial worth turning, in one place.
+const CLOTH = {
+  grid: 32,          // particules par côté
+  mass: 0.05,        // kg par particule
+  gravity: -2.1,
+  damping: 0.30,     // amortissement : plus haut, moins de flottement
+  hoverForce: 4.2,   // N appliqués sous le curseur
+  hoverRadius: 0.60, // en unités de scène
+  tapImpulse: 0.85,
+  crinkle: 0.20      // relief résiduel du film, 0 = feuille lisse
+};
+
+// --- Renderer ------------------------------------------------------------
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.02;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0b0d);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 60);
+const CAM_Y = -0.18;
+camera.position.set(0, CAM_Y, 3.6);
+camera.lookAt(0, 0, 0);
+
+// --- Environment ---------------------------------------------------------
+// Aluminised film is almost a pure mirror: what you see is the room, not the
+// material. The room is painted here as an equirectangular canvas — a cold key
+// band, a warm amber band for the gold face, a rescue-orange spill — then
+// convolved by PMREM so roughness reads correctly.
+function paintRoom() {
+  const c = document.createElement("canvas");
+  c.width = 1024;
+  c.height = 512;
+  const g = c.getContext("2d");
+
+  const sky = g.createLinearGradient(0, 0, 0, 512);
+  sky.addColorStop(0.00, "#39435a");
+  sky.addColorStop(0.38, "#12151c");
+  sky.addColorStop(0.72, "#080a0e");
+  sky.addColorStop(1.00, "#040507");
+  g.fillStyle = sky;
+  g.fillRect(0, 0, 1024, 512);
+
+  const glow = (x, y, rx, ry, color, alpha) => {
+    g.save();
+    g.globalAlpha = alpha;
+    g.translate(x, y);
+    g.scale(rx / ry, 1);
+    const rad = g.createRadialGradient(0, 0, 0, 0, 0, ry);
+    rad.addColorStop(0, color);
+    rad.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = rad;
+    g.fillRect(-ry * 3, -ry, ry * 6, ry * 2);
+    g.restore();
+  };
+
+  glow(215, 118, 300, 104, "#ffffff", 1.00);  // key light
+  glow(660, 150, 250, 92, "#ffcb8a", 0.85);   // warm band, the gold face
+  glow(880, 300, 190, 118, "#ff7a3c", 0.42);  // rescue orange spill
+  glow(430, 372, 340, 96, "#5f86c8", 0.34);   // cool bounce from below
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+const roomTex = paintRoom();
+scene.environment = pmrem.fromEquirectangular(roomTex).texture;
+roomTex.dispose();
+pmrem.dispose();
+
+scene.add(new THREE.AmbientLight(0x2a3346, 0.5));
+const key = new THREE.DirectionalLight(0xffffff, 2.1);
+key.position.set(-2.2, 2.6, 3.4);
+scene.add(key);
+const warm = new THREE.DirectionalLight(0xffb168, 1.5);
+warm.position.set(2.8, -0.8, 2.2);
+scene.add(warm);
+const rim = new THREE.DirectionalLight(0x74a6ff, 0.8);
+rim.position.set(0.4, -2.6, -1.6);
+scene.add(rim);
+
+// --- Surface detail ------------------------------------------------------
+// The simulation carries the large folds. What it cannot carry is the fine
+// creasing left by folding the film into its pouch, so that goes into a normal
+// map instead: cheap, and its strength is one number to turn down.
+function value(x, y, seed) {
+  let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+
+function smooth(x, y, seed) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf);
+  const v = yf * yf * (3 - 2 * yf);
+  const a = value(xi, yi, seed), b = value(xi + 1, yi, seed);
+  const c = value(xi, yi + 1, seed), d = value(xi + 1, yi + 1, seed);
+  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;
+}
+
+// Ridged noise: folding about zero turns smooth hills into the sharp spines a
+// creased film actually has.
+function creases(x, y) {
+  let sum = 0, amp = 0.5, freq = 1;
+  for (let o = 0; o < 4; o++) {
+    const n = smooth(x * freq, y * freq, o) * 2 - 1;
+    sum += amp * Math.pow(1 - Math.abs(n), 3);
+    freq *= 2.07;
+    amp *= 0.55;
+  }
+  return sum;
+}
+
+function paintCreases(size, cells, strength) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const img = g.createImageData(size, size);
+  const step = cells / size;
+  const h = (i, j) => creases(i * step, j * step);
+
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const dx = (h(i + 1, j) - h(i - 1, j)) * strength;
+      const dy = (h(i, j + 1) - h(i, j - 1)) * strength;
+      const len = Math.hypot(dx, dy, 1);
+      const o = (j * size + i) * 4;
+      img.data[o] = ((-dx / len) * 0.5 + 0.5) * 255;
+      img.data[o + 1] = ((-dy / len) * 0.5 + 0.5) * 255;
+      img.data[o + 2] = ((1 / len) * 0.5 + 0.5) * 255;
+      img.data[o + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 2.3);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// Mylar's oil-slick shimmer comes from the film thickness varying across the
+// sheet; a constant thickness would give one flat tint.
+function paintThickness() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const g = c.getContext("2d");
+  g.fillStyle = "#5a5a5a";
+  g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 26; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    const r = 26 + Math.random() * 74;
+    const rad = g.createRadialGradient(x, y, 0, x, y, r);
+    const tone = Math.random() > 0.5 ? "255,255,255" : "0,0,0";
+    rad.addColorStop(0, `rgba(${tone},0.5)`);
+    rad.addColorStop(1, `rgba(${tone},0)`);
+    g.fillStyle = rad;
+    g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 2);
+  return tex;
+}
+
+// --- Mesh ----------------------------------------------------------------
+const N = CLOTH.grid;
+const geometry = new THREE.PlaneGeometry(SHEET_W, SHEET_H, N - 1, N - 1);
+
+const material = new THREE.MeshPhysicalMaterial({
+  color: 0xc4cbd4,
+  metalness: 1.0,
+  roughness: 0.24,
+  side: THREE.DoubleSide,
+  envMapIntensity: 1.75,
+  iridescence: 0.9,
+  iridescenceIOR: 1.28,
+  iridescenceThicknessRange: [140, 640],
+  iridescenceThicknessMap: paintThickness(),
+  normalMap: paintCreases(256, 7, 1.4),
+  normalScale: new THREE.Vector2(CLOTH.crinkle, CLOTH.crinkle),
+  clearcoat: 0.5,
+  clearcoatRoughness: 0.22
+});
+
+const sheet = new THREE.Mesh(geometry, material);
+scene.add(sheet);
+
+// --- Physics -------------------------------------------------------------
+// A grid of particles held by distance constraints: structural links along the
+// rows and columns keep the film from stretching, diagonal ones keep it from
+// shearing, which is what would otherwise crease it into diamonds.
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, CLOTH.gravity, 0) });
+world.solver.iterations = 10;
+world.allowSleep = false;
+
+// Nothing here collides — the film is driven entirely by constraints and by
+// the forces the pointer applies. Skipping broadphase avoids a thousand
+// bodies being tested against each other every step, for nothing.
+class NoContacts extends CANNON.Broadphase {
+  collisionPairs() {}
+}
+world.broadphase = new NoContacts();
+
+const stepX = SHEET_W / (N - 1);
+const stepY = SHEET_H / (N - 1);
+const particles = [];
+
+for (let j = 0; j < N; j++) {
+  const row = [];
+  for (let i = 0; i < N; i++) {
+    const pinned = (i === 0 || i === N - 1) && (j === 0 || j === N - 1);
+    const body = new CANNON.Body({
+      mass: pinned ? 0 : CLOTH.mass,
+      shape: new CANNON.Particle(),
+      linearDamping: CLOTH.damping,
+      position: new CANNON.Vec3(
+        -SHEET_W / 2 + i * stepX,
+        SHEET_H / 2 - j * stepY,
+        // A perfectly flat sheet has no reason to buckle one way rather than
+        // the other; a breath of noise picks a side for it.
+        pinned ? 0 : (Math.random() - 0.5) * 0.012
+      )
+    });
+    world.addBody(body);
+    row.push(body);
+  }
+  particles.push(row);
+}
+
+const diagonal = Math.hypot(stepX, stepY);
+const link = (a, b, distance) => world.addConstraint(new CANNON.DistanceConstraint(a, b, distance));
+
+for (let j = 0; j < N; j++) {
+  for (let i = 0; i < N; i++) {
+    if (i < N - 1) link(particles[j][i], particles[j][i + 1], stepX);
+    if (j < N - 1) link(particles[j][i], particles[j + 1][i], stepY);
+    if (i < N - 1 && j < N - 1) {
+      link(particles[j][i], particles[j + 1][i + 1], diagonal);
+      link(particles[j][i + 1], particles[j + 1][i], diagonal);
+    }
+  }
+}
+
+// --- Interaction ---------------------------------------------------------
+// The sheet stays axis aligned, so a ray against the z = 0 plane lands
+// straight in sheet coordinates: the readout converts to centimetres with a
+// single scale, and the forces need no matrix juggling.
+const raycaster = new THREE.Raycaster();
+const flat = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+const ndc = new THREE.Vector2();
+const hit = new THREE.Vector3();
+const push = new CANNON.Vec3(0, 0, 0);
+// Passed explicitly so cannon-es doesn't allocate a fresh origin on every call
+const centre = new CANNON.Vec3(0, 0, 0);
+
+let hovering = false;
+let pointerX = 0;
+let pointerY = 0;
+let impacts = 0;
+let flash = 0;
+const parallax = new THREE.Vector2();
+const parallaxTarget = new THREE.Vector2();
+
+const elX = document.getElementById("px");
+const elY = document.getElementById("py");
+const elAmp = document.getElementById("amp");
+const elImpacts = document.getElementById("impacts");
+const hint = document.getElementById("hint");
+
+function sheetPoint(clientX, clientY) {
+  ndc.x = (clientX / window.innerWidth) * 2 - 1;
+  ndc.y = -(clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  return raycaster.ray.intersectPlane(flat, hit) ? hit : null;
+}
+
+function readout(point) {
+  if (!point) {
+    elX.textContent = "—";
+    elY.textContent = "—";
     return;
   }
+  const cmX = ((point.x + SHEET_W / 2) / SHEET_W) * 210;
+  const cmY = ((SHEET_H / 2 - point.y) / SHEET_H) * 160;
+  elX.textContent = Math.round(Math.min(210, Math.max(0, cmX))) + " cm";
+  elY.textContent = Math.round(Math.min(160, Math.max(0, cmY))) + " cm";
+}
 
-  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Both gestures share one falloff: hover holds a steady force under the
+// cursor, a tap delivers the same shape as a single impulse.
+function reach(x, y, amount, impulse) {
+  const spread = 1 / (CLOTH.hoverRadius * CLOTH.hoverRadius);
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const body = particles[j][i];
+      if (body.mass === 0) continue;
+      const dx = body.position.x - x;
+      const dy = body.position.y - y;
+      const falloff = Math.exp(-(dx * dx + dy * dy) * spread);
+      if (falloff < 0.01) continue;
+      push.set(0, 0, amount * falloff);
+      if (impulse) body.applyImpulse(push, centre);
+      else body.applyForce(push, centre);
+    }
+  }
+}
 
-  // Real sheet is 210 x 160 cm; the mesh keeps that 1.3125 ratio so the
-  // readout can report genuine centimetres.
-  var SHEET_W = 3.28;
-  var SHEET_H = 2.50;
-  var RIPPLES = 5;
+function strike(point) {
+  if (!point) return;
+  reach(point.x, point.y, CLOTH.tapImpulse, true);
+  impacts += 1;
+  elImpacts.textContent = impacts;
+  flash = 1;
+}
 
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const markUsed = () => hint.classList.add("gone");
+
+canvas.addEventListener("pointermove", (e) => {
+  const point = sheetPoint(e.clientX, e.clientY);
+  if (point) {
+    pointerX = point.x;
+    pointerY = point.y;
+    hovering = true;
+  }
+  parallaxTarget.set(
+    (e.clientX / window.innerWidth - 0.5) * 0.26,
+    -(e.clientY / window.innerHeight - 0.5) * 0.18
+  );
+  readout(point);
+  markUsed();
+});
+
+canvas.addEventListener("pointerdown", (e) => {
+  if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+  const point = sheetPoint(e.clientX, e.clientY);
+  if (point) {
+    pointerX = point.x;
+    pointerY = point.y;
+    hovering = true;
+    readout(point);
+  }
+  strike(point);
+  markUsed();
+});
+
+canvas.addEventListener("pointerleave", () => {
+  hovering = false;
+  parallaxTarget.set(0, 0);
+  readout(null);
+});
+
+// Keyboard reaches the same gesture: space or enter strikes the last contact
+// point, or the middle of the sheet.
+canvas.addEventListener("keydown", (e) => {
+  if (e.key !== " " && e.key !== "Enter") return;
+  e.preventDefault();
+  hit.set(pointerX, pointerY, 0);
+  hovering = true;
+  readout(hit);
+  strike(hit);
+  markUsed();
+});
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.02;
+});
 
-  var scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0b0d);
+// --- Loop ----------------------------------------------------------------
+const positions = geometry.attributes.position;
+const clock = new THREE.Clock();
+let settle = 0;
 
-  var camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 60);
-  camera.position.set(0, -0.34, 3.45);
-  camera.lookAt(0, 0, 0);
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
 
-  // --- Environment -------------------------------------------------------
-  // Aluminised film is almost pure mirror: what you see is the room, not the
-  // material. The room is painted here as an equirectangular canvas, with a
-  // cold key band, a warm amber band for the gold face, and a rescue-orange
-  // spill that streaks across the creases.
-  function paintRoom() {
-    var c = document.createElement("canvas");
-    c.width = 1024;
-    c.height = 512;
-    var g = c.getContext("2d");
+  if (hovering) reach(pointerX, pointerY, CLOTH.hoverForce, false);
+  world.step(1 / 60, dt, 3);
 
-    var sky = g.createLinearGradient(0, 0, 0, 512);
-    sky.addColorStop(0.00, "#39435a");
-    sky.addColorStop(0.38, "#12151c");
-    sky.addColorStop(0.72, "#080a0e");
-    sky.addColorStop(1.00, "#040507");
-    g.fillStyle = sky;
-    g.fillRect(0, 0, 1024, 512);
-
-    function glow(x, y, rx, ry, color, alpha) {
-      g.save();
-      g.globalAlpha = alpha;
-      g.translate(x, y);
-      g.scale(rx / ry, 1);
-      var rad = g.createRadialGradient(0, 0, 0, 0, 0, ry);
-      rad.addColorStop(0, color);
-      rad.addColorStop(1, "rgba(0,0,0,0)");
-      g.fillStyle = rad;
-      g.fillRect(-ry * 3, -ry, ry * 6, ry * 2);
-      g.restore();
+  // PlaneGeometry lays its vertices out row by row from the top left, which is
+  // exactly how the particles were built, so the copy is a straight walk.
+  let deepest = 0;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const p = particles[j][i].position;
+      positions.setXYZ(j * N + i, p.x, p.y, p.z);
+      if (Math.abs(p.z) > deepest) deepest = Math.abs(p.z);
     }
-
-    glow(215, 118, 300, 104, "#ffffff", 1.0);   // key light
-    glow(660, 150, 250, 92, "#ffcb8a", 0.85);   // warm band, the gold face
-    glow(880, 300, 190, 118, "#ff7a3c", 0.42);  // rescue orange spill
-    glow(430, 372, 340, 96, "#5f86c8", 0.34);   // cool bounce from below
-
-    var tex = new THREE.CanvasTexture(c);
-    tex.mapping = THREE.EquirectangularReflectionMapping;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
   }
+  positions.needsUpdate = true;
+  geometry.computeVertexNormals();
 
-  var pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-  var roomTex = paintRoom();
-  scene.environment = pmrem.fromEquirectangular(roomTex).texture;
-  roomTex.dispose();
-  pmrem.dispose();
+  // Struck film springs: a brief lift in exposure reads as the flash of light
+  // the real thing throws when it snaps.
+  flash += (0 - flash) * Math.min(1, dt * 3.2);
+  renderer.toneMappingExposure = 1.02 + flash * 0.2;
 
-  scene.add(new THREE.AmbientLight(0x2a3346, 0.5));
-  var key = new THREE.DirectionalLight(0xffffff, 2.1);
-  key.position.set(-2.2, 2.6, 3.4);
-  scene.add(key);
-  var warm = new THREE.DirectionalLight(0xffb168, 1.5);
-  warm.position.set(2.8, -0.8, 2.2);
-  scene.add(warm);
-  var rim = new THREE.DirectionalLight(0x74a6ff, 0.8);
-  rim.position.set(0.4, -2.6, -1.6);
-  scene.add(rim);
+  // Settle the readout so it reports a measurement, not a flicker.
+  settle += (deepest * MM_PER_UNIT - settle) * Math.min(1, dt * 5);
+  elAmp.textContent = Math.round(settle) + " mm";
 
-  // --- Iridescence thickness ---------------------------------------------
-  // Mylar's oil-slick shimmer comes from the film thickness varying across
-  // the sheet. A constant thickness gives one flat tint, so it is painted as
-  // soft blobs and fed to the material as a map.
-  function paintThickness() {
-    var c = document.createElement("canvas");
-    c.width = 256;
-    c.height = 256;
-    var g = c.getContext("2d");
-    g.fillStyle = "#5a5a5a";
-    g.fillRect(0, 0, 256, 256);
-    for (var i = 0; i < 26; i++) {
-      var x = Math.random() * 256;
-      var y = Math.random() * 256;
-      var r = 26 + Math.random() * 74;
-      var rad = g.createRadialGradient(x, y, 0, x, y, r);
-      var tone = Math.random() > 0.5 ? "255,255,255" : "0,0,0";
-      rad.addColorStop(0, "rgba(" + tone + ",0.5)");
-      rad.addColorStop(1, "rgba(" + tone + ",0)");
-      g.fillStyle = rad;
-      g.fillRect(x - r, y - r, r * 2, r * 2);
-    }
-    var tex = new THREE.CanvasTexture(c);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(2, 2);
-    return tex;
-  }
-
-  // --- Sheet -------------------------------------------------------------
-  var segments = window.innerWidth < 700 ? 128 : 200;
-  var geometry = new THREE.PlaneGeometry(SHEET_W, SHEET_H, segments, segments);
-
-  var material = new THREE.MeshPhysicalMaterial({
-    color: 0xc4cbd4,
-    metalness: 1.0,
-    roughness: 0.20,
-    side: THREE.DoubleSide,
-    envMapIntensity: 1.75,
-    iridescence: 0.9,
-    iridescenceIOR: 1.28,
-    iridescenceThicknessRange: [140, 640],
-    iridescenceThicknessMap: paintThickness(),
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.22
-  });
-
-  var uniforms = {
-    uTime: { value: 0 },
-    uPointer: { value: new THREE.Vector2(9, 9) },
-    uHover: { value: 0 },
-    uCrumple: { value: 0.19 },
-    uRipples: { value: [] }
-  };
-  for (var r = 0; r < RIPPLES; r++) {
-    uniforms.uRipples.value.push(new THREE.Vector4(0, 0, -1, 0));
-  }
-
-  // Height field and its analytic derivative. Creases come from ridged
-  // fractal noise: folding the noise about zero and raising it to a power
-  // turns smooth hills into the sharp spines a crumpled film actually has.
-  var SHEET_GLSL = [
-    "#define RIPPLE_COUNT " + RIPPLES,
-    "#define EPS 0.012",
-    "uniform float uTime;",
-    "uniform vec2 uPointer;",
-    "uniform float uHover;",
-    "uniform float uCrumple;",
-    "uniform vec4 uRipples[RIPPLE_COUNT];",
-    "float hash21(vec2 p) {",
-    "  p = fract(p * vec2(233.34, 851.73));",
-    "  p += dot(p, p + 23.45);",
-    "  return fract(p.x * p.y);",
-    "}",
-    "float vnoise(vec2 p) {",
-    "  vec2 i = floor(p);",
-    "  vec2 f = fract(p);",
-    "  vec2 u = f * f * (3.0 - 2.0 * f);",
-    "  float a = hash21(i);",
-    "  float b = hash21(i + vec2(1.0, 0.0));",
-    "  float c = hash21(i + vec2(0.0, 1.0));",
-    "  float d = hash21(i + vec2(1.0, 1.0));",
-    "  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);",
-    "}",
-    "float crease(vec2 p) {",
-    "  float sum = 0.0;",
-    "  float amp = 0.5;",
-    "  mat2 turn = mat2(0.86, 0.51, -0.51, 0.86);",
-    "  for (int i = 0; i < 4; i++) {",
-    "    float n = vnoise(p) * 2.0 - 1.0;",
-    "    sum += amp * pow(1.0 - abs(n), 3.0);",
-    "    p = turn * p * 2.07 + 11.3;",
-    "    amp *= 0.52;",
-    "  }",
-    "  return sum;",
-    "}",
-    "float sheetHeight(vec2 p) {",
-    "  vec2 q = p * 1.35 + vec2(uTime * 0.014, uTime * 0.009);",
-    "  float h = (crease(q) - 0.46) * uCrumple;",
-    "  float d = distance(p, uPointer);",
-    "  h += uHover * 0.23 * exp(-d * d * 1.9);",
-    "  h += uHover * 0.032 * sin(d * 17.0 - uTime * 4.5) * exp(-d * d * 2.6);",
-    "  for (int i = 0; i < RIPPLE_COUNT; i++) {",
-    "    vec4 wave = uRipples[i];",
-    "    if (wave.z > 0.0) {",
-    "      float front = distance(p, wave.xy) - wave.z * 2.4;",
-    "      h += wave.w * sin(front * 9.0) * exp(-front * front * 5.0) * exp(-wave.z * 1.9);",
-    "    }",
-    "  }",
-    "  return h;",
-    "}"
-  ].join("\n");
-
-  material.onBeforeCompile = function (shader) {
-    shader.uniforms.uTime = uniforms.uTime;
-    shader.uniforms.uPointer = uniforms.uPointer;
-    shader.uniforms.uHover = uniforms.uHover;
-    shader.uniforms.uCrumple = uniforms.uCrumple;
-    shader.uniforms.uRipples = uniforms.uRipples;
-
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\n" + SHEET_GLSL)
-      .replace(
-        "#include <beginnormal_vertex>",
-        [
-          "float h = sheetHeight(position.xy);",
-          "float hx = sheetHeight(position.xy + vec2(EPS, 0.0));",
-          "float hy = sheetHeight(position.xy + vec2(0.0, EPS));",
-          "vec3 objectNormal = normalize(vec3(-(hx - h) / EPS, -(hy - h) / EPS, 1.0));",
-          "#ifdef USE_TANGENT",
-          "  vec3 objectTangent = vec3( tangent.xyz );",
-          "#endif"
-        ].join("\n")
-      )
-      .replace(
-        "#include <begin_vertex>",
-        "vec3 transformed = vec3(position.x, position.y, position.z + h);"
-      );
-  };
-
-  var sheet = new THREE.Mesh(geometry, material);
-  scene.add(sheet);
-
-  // --- Interaction -------------------------------------------------------
-  // The mesh stays axis aligned, so a ray against the z = 0 plane lands
-  // straight in sheet coordinates: no matrix juggling, and the readout can
-  // convert to centimetres with a single scale.
-  var raycaster = new THREE.Raycaster();
-  var flat = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-  var ndc = new THREE.Vector2();
-  var hit = new THREE.Vector3();
-
-  var hoverTarget = 0;
-  var parallax = new THREE.Vector2();
-  var parallaxTarget = new THREE.Vector2();
-  var slot = 0;
-  var impacts = 0;
-  var flash = 0;
-  var lastContact = null;
-
-  var elX = document.getElementById("px");
-  var elY = document.getElementById("py");
-  var elAmp = document.getElementById("amp");
-  var elImpacts = document.getElementById("impacts");
-  var hint = document.getElementById("hint");
-
-  function sheetPoint(clientX, clientY) {
-    ndc.x = (clientX / window.innerWidth) * 2 - 1;
-    ndc.y = -(clientY / window.innerHeight) * 2 + 1;
-    raycaster.setFromCamera(ndc, camera);
-    return raycaster.ray.intersectPlane(flat, hit) ? hit : null;
-  }
-
-  function readout(point) {
-    if (!point) {
-      elX.textContent = "—";
-      elY.textContent = "—";
-      return;
-    }
-    var cmX = ((point.x + SHEET_W / 2) / SHEET_W) * 210;
-    var cmY = ((SHEET_H / 2 - point.y) / SHEET_H) * 160;
-    elX.textContent = Math.round(Math.max(0, Math.min(210, cmX))) + " cm";
-    elY.textContent = Math.round(Math.max(0, Math.min(160, cmY))) + " cm";
-  }
-
-  function strike(point, force) {
-    if (!point) return;
-    var wave = uniforms.uRipples.value[slot];
-    wave.set(point.x, point.y, 0.001, force);
-    slot = (slot + 1) % RIPPLES;
-    impacts += 1;
-    elImpacts.textContent = impacts;
-    flash = 1;
-  }
-
-  function markUsed() {
-    hint.classList.add("gone");
-  }
-
-  canvas.addEventListener("pointermove", function (e) {
-    var point = sheetPoint(e.clientX, e.clientY);
-    if (point) {
-      uniforms.uPointer.value.set(point.x, point.y);
-      lastContact = point.clone();
-      hoverTarget = 1;
-    }
-    parallaxTarget.set(
-      (e.clientX / window.innerWidth - 0.5) * 0.28,
-      -(e.clientY / window.innerHeight - 0.5) * 0.2
-    );
-    readout(point);
-    markUsed();
-  });
-
-  canvas.addEventListener("pointerdown", function (e) {
-    canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
-    var point = sheetPoint(e.clientX, e.clientY);
-    if (point) {
-      uniforms.uPointer.value.set(point.x, point.y);
-      lastContact = point.clone();
-      hoverTarget = 1;
-      readout(point);
-    }
-    strike(point, 0.34);
-    markUsed();
-  });
-
-  canvas.addEventListener("pointerleave", function () {
-    hoverTarget = 0;
-    parallaxTarget.set(0, 0);
-    readout(null);
-  });
-
-  // Keyboard reaches the same gesture: space or enter strikes the last
-  // contact point, or the middle of the sheet.
-  canvas.addEventListener("keydown", function (e) {
-    if (e.key !== " " && e.key !== "Enter") return;
-    e.preventDefault();
-    var point = lastContact || new THREE.Vector3(0, 0, 0);
-    uniforms.uPointer.value.set(point.x, point.y);
-    hoverTarget = 1;
-    readout(point);
-    strike(point, 0.34);
-    markUsed();
-  });
-
-  window.addEventListener("resize", function () {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-
-  // --- Loop --------------------------------------------------------------
-  var clock = new THREE.Clock();
-
-  function frame() {
-    var dt = Math.min(clock.getDelta(), 0.05);
-    if (!reduced) uniforms.uTime.value += dt;
-
-    uniforms.uHover.value += (hoverTarget - uniforms.uHover.value) * Math.min(1, dt * 6);
-
-    var live = 0;
-    for (var i = 0; i < RIPPLES; i++) {
-      var wave = uniforms.uRipples.value[i];
-      if (wave.z > 0) {
-        wave.z += dt;
-        live += wave.w * Math.exp(-wave.z * 1.9);
-        if (wave.z > 2.4) {
-          wave.z = -1;
-          wave.w = 0;
-        }
-      }
-    }
-
-    // Struck film springs, so the crumple amplitude spikes and settles.
-    flash += (0 - flash) * Math.min(1, dt * 3.2);
-    uniforms.uCrumple.value = 0.19 + flash * 0.07;
-    renderer.toneMappingExposure = 1.02 + flash * 0.22;
-
-    // Flèche: the sheet's peak deflection, in millimetres of the real 210 cm
-    // panel. Scene unit 3.28 spans 2100 mm.
-    var deflection = (uniforms.uHover.value * 0.23 + live) * (2100 / SHEET_W);
-    elAmp.textContent = deflection.toFixed(1).replace(".", ",") + " mm";
-
+  if (!reduced) {
     parallax.lerp(parallaxTarget, Math.min(1, dt * 3));
     camera.position.x = parallax.x;
-    camera.position.y = -0.34 + parallax.y;
+    camera.position.y = CAM_Y + parallax.y;
     camera.lookAt(0, 0, 0);
-
-    renderer.render(scene, camera);
-    requestAnimationFrame(frame);
   }
 
-  frame();
-})();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+frame();
 </script>

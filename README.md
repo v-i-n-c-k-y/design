@@ -246,37 +246,44 @@ python -m boats.fleet photo.jpg -s 40 -g 3 -b "#1b1b2a"
 
 # Cloth
 
-Une couverture de survie en mylar, rendue en WebGL. La feuille se souleve sous
-le curseur et claque au clic, comme le fait le film aluminise quand on le
-touche. Pas de dependance a installer : ouvrez `cloth/index.html` dans un
-navigateur, three.js vient du CDN.
+Une couverture de survie en mylar, simulee et rendue dans le navigateur. La
+feuille se souleve sous le curseur et claque au clic, comme le fait le film
+aluminise quand on le touche. Pas de dependance a installer : ouvrez
+`cloth/index.html` dans un navigateur, three.js et cannon-es viennent du CDN.
 
 ## Principe
 
-Le film est un plan de 200 x 200 segments dont la hauteur est calculee dans le
-vertex shader, greffe sur un `MeshPhysicalMaterial` par `onBeforeCompile`. Trois
-couches s'y additionnent :
+**La forme vient de la physique.** Une grille de 32 x 32 particules cannon-es,
+tenue par des contraintes de distance : les liens en lignes et en colonnes
+empechent le film de s'etirer, les diagonales l'empechent de cisailler -- ce qui
+sinon le plisserait en losanges. Seuls les quatre coins sont fixes, le reste
+pend sous une gravite douce. Une feuille parfaitement plane n'ayant aucune
+raison de flamber d'un cote plutot que de l'autre, un souffle de bruit sur les
+positions de depart tranche pour elle.
 
-- **Les plis.** Un bruit fractal *ridged* : on replie le bruit autour de zero
-  puis on eleve le resultat a la puissance trois, ce qui transforme des collines
-  lisses en aretes vives. Quatre octaves, chacune tournee par rapport a la
-  precedente pour eviter les alignements sur les axes.
-- **Le survol.** Une bosse gaussienne suit le curseur, doublee d'une vibration
-  fine qui s'amortit avec la distance.
-- **Les impacts.** Chaque clic pousse une onde dans un tableau de cinq, un front
-  qui s'eloigne du point de contact et s'eteint en deux secondes.
+Rien n'entre en collision ici : le film n'est mu que par ses contraintes et par
+les forces du curseur. La broadphase est donc remplacee par une classe vide,
+sans quoi mille corps seraient testes deux a deux a chaque pas, pour rien.
 
-Les normales sont analytiques : la hauteur est evaluee trois fois par sommet,
-au point et a deux pas d'epsilon, et la normale sort du produit des derivees.
-C'est ce qui donne des aretes nettes plutot que le rendu mou d'une normale
-interpolee.
+**Les deux gestes partagent une meme gaussienne.** Le survol maintient une force
+sous le curseur, le clic delivre la meme forme en une seule impulsion.
 
-Le materiau est metallique pur, sans texture de couleur : ce qu'on voit est le
-reflet de la piece. Elle est peinte a la main dans un canvas equirectangulaire
--- une bande froide, une bande ambree pour la face doree, un debord orange de
-secours -- puis convolue par `PMREMGenerator`. Une carte d'epaisseur procedurale
-alimente l'iridescence, sans quoi le film n'aurait qu'une seule teinte au lieu
-du chatoiement du mylar.
+**Le relief fin est une carte de normales.** La simulation porte les grands
+plis ; ce qu'elle ne peut pas porter, c'est le froissage laisse par le pliage en
+pochette. Il est donc peint separement, par un bruit fractal *ridged* -- replie
+autour de zero puis eleve au cube, ce qui transforme des collines lisses en
+aretes vives -- puis derive en normales. Son intensite tient dans une seule
+constante, `CLOTH.crinkle`.
 
-Le releve affiche des valeurs reelles : le point de contact en centimetres sur
-un panneau de 210 x 160 cm, et la fleche en millimetres.
+**Le materiau est metallique pur**, sans texture de couleur : ce qu'on voit est
+le reflet de la piece. Elle est peinte a la main dans un canvas
+equirectangulaire -- une bande froide, une bande ambree pour la face doree, un
+debord orange de secours -- puis convolue par `PMREMGenerator`. Une carte
+d'epaisseur procedurale alimente l'iridescence, sans quoi le film n'aurait
+qu'une seule teinte au lieu du chatoiement du mylar.
+
+Tous les reglages tiennent dans l'objet `CLOTH` en tete de script : taille de la
+grille, masse, gravite, amortissement, force du survol, impulsion du clic, et
+le relief residuel. Le releve affiche des valeurs reelles : le point de contact
+en centimetres sur un panneau de 210 x 160 cm, et la fleche mesuree sur la
+simulation.
