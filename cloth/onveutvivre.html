@@ -352,22 +352,27 @@ try {
 
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const SHEET_W = 3.28;
-const SHEET_H = 2.50;
+// Bien plus grande que le champ de la caméra : c'est ce débord qui garde la
+// fenêtre couverte et laisse le point d'accroche hors cadre.
+const SHEET_W = 7.2;
+const SHEET_H = 4.6;
 
 // Plus calme que la pièce d'étude : le fond d'une page de garde ne doit pas
 // disputer la lecture au titre.
 const CLOTH = {
-  grid: 26,
+  grid: window.innerWidth < 760 ? 32 : 44,
+  clamp: 3,          // le mors qui tient le coin, en particules de côté
   mass: 0.05,
-  gravity: -1.4,
-  damping: 0.58,
-  bendForce: 70,
-  hoverForce: 3.6,
-  hoverRadius: 0.62,
-  tapImpulse: 0.8,
+  // Presque rien : une feuille qui tombe finirait par découvrir le haut du
+  // cadre, alors que le fond doit rester couvert. La brise fait le mouvement.
+  gravity: -0.35,
+  damping: 0.55,
+  bendForce: 140,
+  hoverForce: 3.8,
+  hoverRadius: 0.85,
+  tapImpulse: 0.9,
   crinkle: 0.22,
-  breeze: 0.20
+  breeze: 0.22
 };
 
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -377,9 +382,12 @@ renderer.toneMappingExposure = 0.66;
 renderer.setClearColor(0x0d0906, 1);
 
 const scene = new THREE.Scene();
+// Le regard est décalé vers le bas et la gauche : le coin tenu sort du cadre
+// par le haut à droite, et c'est le drapé qu'on voit.
 const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 60);
-camera.position.set(0, -0.12, 3.7);
-camera.lookAt(0, 0, 0);
+const LOOK = new THREE.Vector3(-0.3, -0.35, 0);
+camera.position.set(LOOK.x, LOOK.y, 3.35);
+camera.lookAt(LOOK);
 
 // --- Le ciel de canicule -------------------------------------------------
 // Le film est un miroir : ce qu'on voit est le ciel, pas la matière. Adapter
@@ -551,7 +559,7 @@ scene.add(sheet);
 
 // --- Simulation ----------------------------------------------------------
 const world = new CANNON.World({ gravity: new CANNON.Vec3(0, CLOTH.gravity, 0) });
-world.solver.iterations = 9;
+world.solver.iterations = 8;
 world.allowSleep = false;
 
 // Rien n'entre en collision : le film n'est mû que par ses contraintes et par
@@ -568,7 +576,11 @@ const particles = [];
 for (let j = 0; j < N; j++) {
   const row = [];
   for (let i = 0; i < N; i++) {
-    const pinned = (i === 0 || i === N - 1) && (j === 0 || j === N - 1);
+    // Un mors, pas un point : tenir une seule particule laisserait la feuille
+    // pivoter librement autour d'elle jusqu'à pendre sous son attache, ce qui
+    // découvrirait la moitié gauche du cadre. Neuf particules bloquent aussi
+    // l'orientation du coin.
+    const pinned = i >= N - CLOTH.clamp && j < CLOTH.clamp;
     const body = new CANNON.Body({
       mass: pinned ? 0 : CLOTH.mass,
       shape: new CANNON.Particle(),

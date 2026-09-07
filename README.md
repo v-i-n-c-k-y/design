@@ -351,11 +351,19 @@ calcine, et un soleil que la brume etale sur trente-huit degres au lieu du
 disque net d'une belle journee. La reflectance du film suit, du cuivre chaud
 plutot que l'or froid.
 
+La couverture deborde largement du champ de la camera et n'est tenue que par un
+coin, en haut a droite, hors cadre : on ne voit donc que le drape, et le ciel
+n'apparait presque jamais derriere. Ce coin est tenu par un mors de neuf
+particules et non par une seule, car une feuille retenue en un point pivoterait
+librement autour de lui jusqu'a pendre dessous, ce qui decouvrirait la moitie
+gauche du cadre. La gravite est reduite a presque rien pour la meme raison : une
+feuille qui tombe finit par degarnir le haut. C'est la brise qui fait le
+mouvement.
+
 Un voile en deux degrades assoit le texte sur un champ sombre en bas a gauche
 tout en laissant le film respirer en haut a droite. Le compte a rebours vers le
 26 septembre est calcule, pas ecrit en dur.
 
-La page porte une etiquette *etude de mise en page* et n'est pas publiee en
-ligne : elle emprunte le nom, le mot d'ordre et les chiffres d'une campagne
-reelle, ce qui en fait une maquette de travail et non une page a diffuser. Les
-chiffres sont un releve date, pas un compteur.
+La page porte une etiquette *etude de mise en page*, et l'index du site precise
+qu'elle n'emane pas de la campagne : elle en emprunte le nom, le mot d'ordre et
+les chiffres. Ces chiffres sont un releve date, pas un compteur.
