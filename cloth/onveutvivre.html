@@ -374,7 +374,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.66;
-renderer.setClearColor(0x0d0906, 1);
+renderer.setClearColor(0x000000, 1);
 
 const scene = new THREE.Scene();
 const CAM_FOV = 40;
@@ -475,7 +475,11 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 pmrem.compileEquirectangularShader();
 const skyTex = paintHeatSky();
 scene.environment = pmrem.fromEquirectangular(skyTex).texture;
-scene.background = skyTex;
+// Le ciel ne sert plus qu'aux reflets du film. Derrière la couverture, du noir :
+// le titre n'a ainsi rien à disputer. La texture équirectangulaire peut donc
+// être relâchée une fois la convolution faite, elle n'est plus dessinée.
+scene.background = new THREE.Color(0x000000);
+skyTex.dispose();
 pmrem.dispose();
 
 const sun = new THREE.DirectionalLight(0xffe0ad, 3.1);
